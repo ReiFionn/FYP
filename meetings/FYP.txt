@@ -1,0 +1,26 @@
+FYP
+- marketplace for tickets (toutless + trustapp)
+- payments - build on existing web payment systems (stripe, paypal, bluefin, etc)
+- when uploading tickets, do not allow price above original sale
+- messaging system
+- draw architecture diagram
+- write user story: alice and bob exchanging tickets
+- xplatform: react native? flutter? 
+- frauds at play - fraudulent activity, ways to bypass
+
+Project:
+- 3rd January, week following presentations [NOT SET IN STONE]
+- Mondays + Thursday at home, Wednesday morning 
+- Won't meet every week
+- Trello?
+- Blog? 
+- GitHub
+- Write up each meeting
+
+Agreed actions:
+- detailed description
+- research similar systems
+
+Rob:
+- will send me contract
+- look up academic research in this area 
