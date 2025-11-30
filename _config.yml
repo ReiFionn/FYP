@@ -27,7 +27,7 @@ url: "https://reifionn.github.io" # the base hostname & protocol for your site, 
 # twitter_username: jekyllrb
 github_username:  reifionn
 # Build settings
-theme: null
+theme: hacker
 remote_theme: pages-themes/hacker
 plugins:
   - jekyll-feed
