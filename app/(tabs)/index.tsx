@@ -1,98 +1,95 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, Image } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const CATEGORIES = ["Today", "Rock", "Pop", "Rap", "Electronic"];
 
-export default function HomeScreen() {
+const FEED = [
+  { id: "1", title: "1", price: "£25", user: "alex" },
+  { id: "2", title: "2", price: "£40", user: "jamie" },
+];
+
+export default function Index() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      <View style={{ 
+        flexDirection: "row", 
+        justifyContent: "space-between", 
+        alignItems: "center",
+        paddingHorizontal: 16,
+        paddingVertical: 12
+      }}>
+        <Text style={{ fontSize: 20, fontWeight: "700" }}>Fair Play</Text>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <View style={{ flexDirection: "row", gap: 16 }}>
+          <TouchableOpacity onPress={() => router.push("/explore")}>
+            <Text>Search!</Text>
+          </TouchableOpacity>
+          <Text>Messages!</Text>
+          <Text>Profile!</Text>
+        </View>
+      </View>
+
+      <View style={{ paddingHorizontal: 16 }}>
+        <TextInput
+          placeholder="Search for items..."
+          placeholderTextColor="#888"
+          style={{
+            backgroundColor: "#f2f2f2",
+            borderRadius: 12,
+            padding: 12,
+            fontSize: 16
+          }}
+        />
+      </View>
+
+      <FlatList
+        horizontal
+        data={CATEGORIES}
+        keyExtractor={(c) => c}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#eee",
+              paddingVertical: 8,
+              paddingHorizontal: 14,
+              borderRadius: 20,
+              marginRight: 10
+            }}
+          >
+            <Text>{item}</Text>
+          </TouchableOpacity>
+        )}
+      />
+
+      <FlatList
+        data={FEED}
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={{
+              borderWidth: 1,
+              borderColor: "#e5e5e5",
+              borderRadius: 16,
+              marginBottom: 16,
+              overflow: "hidden"
+            }}
+          >
+            <View style={{ height: 160, backgroundColor: "#ddd" }} />
+
+            <View style={{ padding: 12 }}>
+              <Text style={{ fontWeight: "600" }}>{item.title}</Text>
+              <Text style={{ marginTop: 4 }}>{item.price}</Text>
+              <Text style={{ color: "#777", marginTop: 2 }}>
+                @{item.user}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
