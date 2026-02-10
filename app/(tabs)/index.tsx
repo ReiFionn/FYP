@@ -1,6 +1,6 @@
 import { View, Text, FlatList, TextInput, TouchableOpacity, Image } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 const CATEGORIES = ["Today", "Rock", "Pop", "Rap", "Electronic"];
 
@@ -10,35 +10,23 @@ const FEED = [
 ];
 
 export default function Index() {
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      <View style={{ 
-        flexDirection: "row", 
-        justifyContent: "space-between", 
-        alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 12
-      }}>
-        <Text style={{ fontSize: 20, fontWeight: "700" }}>Fair Play</Text>
+  const colorScheme = useColorScheme() ?? 'light';
 
-        <View style={{ flexDirection: "row", gap: 16 }}>
-          <TouchableOpacity onPress={() => router.push("/explore")}>
-            <Text>Search!</Text>
-          </TouchableOpacity>
-          <Text>Messages!</Text>
-          <Text>Profile!</Text>
-        </View>
-      </View>
+  return (
+    <View style={{ flex: 1, padding: 16, backgroundColor: Colors[colorScheme].background }}>
+          <Text style={{ fontSize: 22, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 12 }}>
+            Users
+          </Text>
 
       <View style={{ paddingHorizontal: 16 }}>
         <TextInput
           placeholder="Search for items..."
-          placeholderTextColor="#888"
+          placeholderTextColor="#ECEDEE"
           style={{
-            backgroundColor: "#f2f2f2",
+            backgroundColor: Colors[colorScheme].icon,
             borderRadius: 12,
             padding: 12,
-            fontSize: 16
+            fontSize: 16,
           }}
         />
       </View>
@@ -52,14 +40,14 @@ export default function Index() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={{
-              backgroundColor: "#eee",
+              backgroundColor: Colors[colorScheme].icon,
               paddingVertical: 8,
               paddingHorizontal: 14,
               borderRadius: 20,
-              marginRight: 10
+              marginRight: 10,
             }}
           >
-            <Text>{item}</Text>
+            <Text style={{ color: Colors[colorScheme].text}}>{item}</Text>
           </TouchableOpacity>
         )}
       />
@@ -72,24 +60,24 @@ export default function Index() {
           <TouchableOpacity
             style={{
               borderWidth: 1,
-              borderColor: "#e5e5e5",
+              borderColor: Colors[colorScheme].icon,
               borderRadius: 16,
               marginBottom: 16,
               overflow: "hidden"
             }}
           >
-            <View style={{ height: 160, backgroundColor: "#ddd" }} />
+            <View style={{ height: 160, backgroundColor: Colors[colorScheme].background }} />
 
             <View style={{ padding: 12 }}>
-              <Text style={{ fontWeight: "600" }}>{item.title}</Text>
-              <Text style={{ marginTop: 4 }}>{item.price}</Text>
-              <Text style={{ color: "#777", marginTop: 2 }}>
+              <Text style={{ fontWeight: "600", color: Colors[colorScheme].text }}>{item.title}</Text>
+              <Text style={{ marginTop: 4,  color: Colors[colorScheme].text }}>{item.price}</Text>
+              <Text style={{ color: Colors[colorScheme].text, marginTop: 2 }}>
                 @{item.user}
               </Text>
             </View>
           </TouchableOpacity>
         )}
       />
-    </SafeAreaView>
+    </View>
   );
 }

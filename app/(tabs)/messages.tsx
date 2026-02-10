@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, Pressable, Button } from "react-native";
 import { router } from "expo-router";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../../lib/supabase";
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 type Profile = { id: string; email: string | null; display_name: string | null };
 
 export default function Users() {
+  const colorScheme = useColorScheme() ?? 'light';
+
   const [me, setMe] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
@@ -33,9 +37,9 @@ export default function Users() {
   }
 
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: "#fff" }}>
-      <Text style={{ fontSize: 22, fontWeight: "700", color: "#111", marginBottom: 12 }}>
-        Users
+    <View style={{ flex: 1, padding: 16, backgroundColor: Colors[colorScheme].background }}>
+      <Text style={{ fontSize: 22, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 12 }}>
+        Messages
       </Text>
 
       <Button title="Log out" onPress={logout} />
@@ -47,17 +51,17 @@ export default function Users() {
         renderItem={({ item }) => (
           <Pressable
             onPress={() => router.push(`/chat/${item.id}`)} // navigate to chat with this user
-            style={{ padding: 12, borderWidth: 1, borderColor: "#eee", borderRadius: 12, marginBottom: 10 }}
+            style={{ padding: 12, borderWidth: 1, borderColor: Colors[colorScheme].background, borderRadius: 12, marginBottom: 10 }}
           >
-            <Text style={{ color: "#111", fontWeight: "600" }}>
+            <Text style={{ color: Colors[colorScheme].text, fontWeight: "600" }}>
               {item.display_name ?? item.email ?? item.id}
             </Text>
-            <Text style={{ color: "#666", fontSize: 12 }}>
+            <Text style={{ color: Colors[colorScheme].text, fontSize: 12 }}>
               {item.email ?? ""}
             </Text>
           </Pressable>
         )}
-        ListEmptyComponent={<Text style={{ color: "#666", marginTop: 20 }}>No other users yet.</Text>}
+        ListEmptyComponent={<Text style={{ color: Colors[colorScheme].text, marginTop: 20 }}>No other users yet.</Text>}
       />
     </View>
   );

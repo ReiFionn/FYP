@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, Button, FlatList, KeyboardAvoidingView, Platform } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../../lib/supabase";
 
 type Msg = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
 

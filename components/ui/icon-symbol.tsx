@@ -18,6 +18,10 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  "magnifyingglass": "search",
+  "magnifyingglass.circle.fill": "search", 
+  "person.crop.circle": "account-circle",
+  "person.crop.circle.fill": "account-circle"
 } as IconMapping;
 
 /**
@@ -37,5 +41,10 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
+  const materialIconName = MAPPING[name];
+  if (!materialIconName) {
+    console.warn(`IconSymbol: No mapping found for name "${name}"`);
+    return <MaterialIcons color={color} size={size} name="help" style={style} />;
+  }
   return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
 }
