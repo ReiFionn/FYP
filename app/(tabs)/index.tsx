@@ -1,16 +1,16 @@
-import { View, Text, FlatList, TextInput, TouchableOpacity, Image, ListRenderItem } from "react-native";
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
-import React, { useEffect, useState } from "react";
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from "react";
+import { FlatList, ListRenderItem, RefreshControl, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../lib/supabase";
-
 
 const CATEGORIES = ["Today", "Rock", "Pop", "Rap", "Electronic"];
 
 type Event = {
   id: string;
   title: string;
-  start_time: string; // supabase returns strings for timestamps
+  start_time: string;
   venue_name: string;
   address_line1: string;
   city: string;
@@ -30,10 +30,20 @@ export default function Index() {
   const colorScheme = useColorScheme() ?? 'light';
   const [data, setData] = useState<ListingWithEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
 
-  useEffect(() => {
-    fetchListings();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchListings();
+    }, [])
+  )
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchListings();
+    setRefreshing(false);
+  };
 
   const fetchListings = async () => {
     try {
@@ -62,6 +72,7 @@ export default function Index() {
     
     return (
       <TouchableOpacity
+        onPress={() => router.push(`/listings/${item.id}`)}
         style={{
           backgroundColor: Colors[colorScheme].background,
           borderWidth: 1,
@@ -71,9 +82,6 @@ export default function Index() {
           overflow: "hidden",
         }}
       >
-        <View style={{ height: 160, backgroundColor: Colors[colorScheme].icon, justifyContent: 'center', alignItems: 'center' }}>
-           <Text style={{color: Colors[colorScheme].tabIconDefault}}>Event Image</Text> {/* placeholder for image */}
-        </View> 
 
         <View style={{ padding: 12 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -151,7 +159,14 @@ export default function Index() {
         keyExtractor={(i) => i.id}
         contentContainerStyle={{ paddingHorizontal: 16 }}
         renderItem={renderListing}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
     </View>
   );
 }
+function setRefreshing(arg0: boolean) {
+  throw new Error('Function not implemented.');
+}
+

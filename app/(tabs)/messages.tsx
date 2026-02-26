@@ -31,18 +31,11 @@ export default function Users() {
     load();
   }, []);
 
-  async function logout() {
-    await supabase.auth.signOut();
-    router.replace("/(auth)/login");
-  }
-
   return (
     <View style={{ flex: 1, padding: 16, backgroundColor: Colors[colorScheme].background }}>
       <Text style={{ fontSize: 22, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 12 }}>
         Messages
       </Text>
-
-      <Button title="Log out" onPress={logout} />
 
       <FlatList
         style={{ marginTop: 12 }}

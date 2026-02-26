@@ -1,0 +1,110 @@
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { supabase } from "@/lib/supabase";
+import { Button } from '@react-navigation/elements';
+import { useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from "react";
+import { ScrollView, Text, View } from 'react-native';
+
+type Event = {
+  id: string;
+  title: string;
+  start_time: string;
+  venue_name: string;
+  address_line1: string;
+  city: string;
+  region: string;
+  category: string;
+};
+
+type ListingWithEvent = {
+  id: string;
+  seller_id: string;
+  status: string;
+  listing_price: number;
+  events: Event; 
+};
+
+export default function ListingDetails() {
+  const { listingId } = useLocalSearchParams(); 
+  const colorScheme = useColorScheme() ?? 'light';
+  const [listing, setListing] = useState<ListingWithEvent | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchListing();
+  }, [listingId]);
+
+  const fetchListing = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('listings').select(`*, events (id, title, age_restriction, start_time, venue_name, city, address_line1, category)`).eq('id', listingId).single();
+      if (error) throw error;
+      if (data) setListing(data as unknown as ListingWithEvent);
+    } catch (error) {
+      console.error('Error fetching listing:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+  };
+
+  if (!listing || !listing.events) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors[colorScheme].background }}>
+        <Text style={{ color: Colors[colorScheme].text }}>Listing not found.</Text>
+      </View>
+    );
+  }
+
+  console.log("Event Data from Supabase:", listing.events);
+
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: Colors[colorScheme].background }}>
+      
+      {/* <View style={{ height: 250, backgroundColor: Colors[colorScheme].icon, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: Colors[colorScheme].tabIconDefault }}>Event Image Placeholder</Text>
+      </View> */}
+
+      <View style={{ padding: 20 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Text style={{ fontSize: 24, fontWeight: "800", color: Colors[colorScheme].text, flex: 1, marginRight: 12 }}>
+            {listing.events.title}
+          </Text>
+          <Text style={{ fontSize: 24, fontWeight: "800", color: '#0a7ea4' }}>
+            €{listing.listing_price}
+          </Text>
+        </View>
+
+        <View style={{ marginTop: 12 }}>
+          <Text style={{ color: Colors[colorScheme].text, fontSize: 16, fontWeight: '500' }}>
+            {formatDate(listing.events.start_time)}
+          </Text>
+          <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 16, marginTop: 4 }}>
+            {listing.events.venue_name}, {listing.events.address_line1}, {listing.events.city}
+          </Text>
+        </View>
+
+        <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />
+
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Button>Buy</Button>
+            <Button>Make Offer</Button>
+        </View>
+
+        <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />
+
+        <Text style={{ color: Colors[colorScheme].text, fontSize: 18, fontWeight: '700' }}>Ticket Details</Text>
+        <Text style={{ color: Colors[colorScheme].tabIconDefault, marginTop: 8 }}>
+          xxxxxxxxxxxxxxxxxxxxxx
+        </Text>
+
+      </View>
+    </ScrollView>
+  );
+}

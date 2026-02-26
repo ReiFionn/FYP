@@ -5,11 +5,17 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { StripeProvider } from "@stripe/stripe-react-native";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme() ?? 'light';
 
   return (
+    <StripeProvider
+            publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY!}
+            merchantIdentifier="merchant.identifier"
+            urlScheme="your-url-scheme"
+            >
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,
@@ -37,6 +43,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="createListing"
+        options={{
+          title: 'List',
+          tabBarIcon: ({ color, focused }) => <IconSymbol size={28} name={focused ? "plus.circle.fill" : "plus.circle"} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="messages"
         options={{
           title: 'Messages',
@@ -56,6 +69,13 @@ export default function TabLayout() {
           href: null, // This prevents the tab from appearing in the bar
         }}
       />
+      <Tabs.Screen
+        name="listings/[listingId]"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
+    </StripeProvider>
   );
 }

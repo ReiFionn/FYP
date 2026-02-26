@@ -22,7 +22,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "output": "static",
+      "output": "server",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -37,6 +37,14 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      "@react-native-community/datetimepicker",
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.yourname.fairplay",
+          "enableGooglePay": false
         }
       ]
     ],
