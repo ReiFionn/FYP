@@ -30,6 +30,22 @@ export default function CreateListingTest() {
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const { askGemini } = useGemini();
 
+  const resetForm = () => {
+  setTitle('');
+  setPrice('');
+  setSection('');
+  setRow('');
+  setDate(new Date());
+  setDateMetadata(new Date());
+  setVenueName('');
+  setAddress('');
+  setCity('');
+  setRegion('');
+  setCategory('');
+  setPlatformOfPurchase('');
+  setReceiptUri(null);
+};
+
 //   type Event = {
 //   id: string;
 //   title: string;
@@ -140,6 +156,7 @@ const categoryData = [
       if (listingError) throw listingError;
 
       Alert.alert('Success!', 'Event and Listing created!');
+      resetForm();
       router.push(`/listings/${newListing.id}`);
 
     } catch (error: any) {
@@ -356,18 +373,6 @@ const categoryData = [
             inputSearchStyle={{ color: 'black', borderRadius: 8 }}
           />
           {/* ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// */}
-          <TouchableOpacity
-            onPress={handleCreateListing}
-            disabled={loading}
-            style={{ backgroundColor: '#0a7ea4', padding: 16, borderRadius: 12, alignItems: 'center', opacity: loading ? 0.7 : 1, marginBottom: 40 }}
-          >
-            {loading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>Create Listing</Text>
-            )}
-          </TouchableOpacity>
-          {/* ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// */}
           <Text style={{ color: Colors[colorScheme].text, marginBottom: 8, fontWeight: '600' }}>Original Purchase Information</Text>
           <Text style={{ color: Colors[colorScheme].text, marginBottom: 8, fontWeight: '600' }}>Platform of Purchase</Text>
           <TextInput
@@ -384,7 +389,7 @@ const categoryData = [
             style={{ backgroundColor: Colors[colorScheme].icon, padding: 16, borderRadius: 12, marginBottom: 20 }}
           >
             <Text style={{ color: Colors[colorScheme].text }}>
-              {date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+              {dateMetadata.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
             </Text>
           </TouchableOpacity>
 
@@ -431,6 +436,18 @@ const categoryData = [
               <Text style={{ color: 'red', fontSize: 14 }}>Remove Image</Text>
             </TouchableOpacity>
           )}
+          {/* ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// */}
+          <TouchableOpacity
+            onPress={handleCreateListing}
+            disabled={loading}
+            style={{ backgroundColor: '#0a7ea4', padding: 16, borderRadius: 12, alignItems: 'center', opacity: loading ? 0.7 : 1, marginBottom: 40 }}
+          >
+            {loading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>Create Listing</Text>
+            )}
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     );

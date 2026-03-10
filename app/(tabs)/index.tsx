@@ -23,6 +23,7 @@ type ListingWithEvent = {
   seller_id: string;
   status: string;
   listing_price: number;
+  ai_suggested_price: number;
   events: Event; 
 };
 
@@ -32,6 +33,7 @@ export default function Index() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
+  let aiPriceColour: string;
 
   useFocusEffect(
     useCallback(() => {
@@ -67,8 +69,19 @@ export default function Index() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
   };
 
+  const aiPriceColourLogic = (userPrice: number, aiPrice: number) => {
+    if (Math.abs(aiPrice - userPrice) >= 10)
+      aiPriceColour = "red"
+    else if (Math.abs(aiPrice - userPrice) >= 5)
+      aiPriceColour = "orange"
+    else
+      aiPriceColour = "green"
+  }
+
   const renderListing: ListRenderItem<ListingWithEvent> = ({ item }) => {
     if (!item.events) return null;
+
+    aiPriceColourLogic(item.listing_price, item.ai_suggested_price);
     
     return (
       <TouchableOpacity
@@ -88,18 +101,18 @@ export default function Index() {
             <Text style={{ fontSize: 16, fontWeight: "700", color: Colors[colorScheme].text, flex: 1, marginRight: 8 }}>
               {item.events.title}
             </Text>
-            <Text style={{ fontSize: 16, fontWeight: "700", color: '#0a7ea4' }}>
+            <Text style={{ fontSize: 16, fontWeight: "700", color: aiPriceColour }}>
               €{item.listing_price}
             </Text>
           </View>
 
           <View style={{ marginTop: 6 }}>
-             <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 14 }}>
-               {formatDate(item.events.start_time)} • {item.events.venue_name}
-             </Text>
-             <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 12, marginTop: 4 }}>
-               {item.events.city}
-             </Text>
+            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 14 }}>
+              {formatDate(item.events.start_time)} • {item.events.venue_name}
+            </Text>
+            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 12, marginTop: 4 }}>
+              {item.events.city}
+            </Text>
           </View>
         </View>
       </TouchableOpacity>
