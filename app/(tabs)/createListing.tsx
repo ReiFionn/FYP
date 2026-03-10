@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dropdown } from 'react-native-element-dropdown';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 
 export default function CreateListingTest() {
@@ -47,6 +48,14 @@ export default function CreateListingTest() {
 //   listing_price: number;
 //   events: Event; 
 // };
+
+const categoryData = [
+  { label: 'Pop', value: 'Pop'},
+  { label: 'Rock', value: 'Rock'},
+  { label: 'Electronic', value: 'Electronic'},
+  { label: 'Rap', value: 'Rap'},
+  { label: 'Ambient', value: 'Ambient'},
+];
 
   const handleCreateListing = async () => {
     if (!price || isNaN(Number(price))) {
@@ -324,12 +333,27 @@ export default function CreateListingTest() {
           </View>
           {/* ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// */}
           <Text style={{ color: Colors[colorScheme].text, marginBottom: 8, fontWeight: '600' }}>Category</Text>
-          <TextInput
+          <Dropdown
+            data={categoryData}
+            search
+            maxHeight={300}
+            labelField="label"
+            valueField="value"
+            placeholder="Select category"
+            searchPlaceholder="Search..."
             value={category}
-            onChangeText={setCategory}
-            placeholder="e.g. Music, Sports"
-            placeholderTextColor={Colors[colorScheme].tabIconDefault}
-            style={{ backgroundColor: Colors[colorScheme].icon, color: Colors[colorScheme].text, padding: 16, borderRadius: 12, marginBottom: 30 }}
+            onChange={item => {
+              setCategory(item.value); 
+            }}
+            style={{ 
+              backgroundColor: Colors[colorScheme].icon, 
+              padding: 16, 
+              borderRadius: 12, 
+              marginBottom: 30 
+            }}
+            selectedTextStyle={{ color: Colors[colorScheme].text }}
+            placeholderStyle={{ color: Colors[colorScheme].tabIconDefault }}
+            inputSearchStyle={{ color: 'black', borderRadius: 8 }}
           />
           {/* ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// */}
           <TouchableOpacity
