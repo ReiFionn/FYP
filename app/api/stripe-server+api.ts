@@ -1,10 +1,30 @@
 import Stripe from "stripe";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
-    const stripe = new Stripe(process.env.STRIPE_PRIVATE_KEY!);
+  const stripe = new Stripe(process.env.STRIPE_PRIVATE_KEY!);
+  
   try {
-    const customer = await stripe.customers.create({
-    });
+    const body = await req.json();
+    const { listingId } = body;
+
+    if (!listingId) {
+      return new Response(JSON.stringify({ error: "Missing listingId" }), { status: 400 });
+    }
+
+    const { data: listing, error: dbError } = await supabase
+      .from('listings')
+      .select('listing_price')
+      .eq('id', listingId)
+      .single();
+
+    if (dbError || !listing) {
+      return new Response(JSON.stringify({ error: "Listing not found" }), { status: 404 });
+    }
+
+    const amountInCents = Math.round(listing.listing_price * 100);
+
+    const customer = await stripe.customers.create({});
 
     const customerSession = await stripe.customerSessions.create({
       customer: customer.id,
@@ -21,7 +41,7 @@ export async function POST(req: Request) {
     });
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: 1099,
+      amount: amountInCents,
       currency: "eur",
       customer: customer.id,
       automatic_payment_methods: {
@@ -36,10 +56,7 @@ export async function POST(req: Request) {
         customer: customer.id,
         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
       }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("Stripe error:", error);

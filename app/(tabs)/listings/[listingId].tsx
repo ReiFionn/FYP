@@ -2,9 +2,10 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from "@/lib/supabase";
 import { Button } from '@react-navigation/elements';
+import { useStripe } from "@stripe/stripe-react-native";
 import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from "react";
-import { ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View } from 'react-native';
 
 type Event = {
   id: string;
@@ -32,7 +33,8 @@ export default function ListingDetails() {
   const [listing, setListing] = useState<ListingWithEvent | null>(null);
   const [loading, setLoading] = useState(true);
   let aiPriceColour = "green"
-
+  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const [loadingPayment, setLoadingPayment] = useState(false);
 
   useEffect(() => {
     fetchListing();
@@ -56,6 +58,66 @@ export default function ListingDetails() {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
   };
+
+    ///////////////////////////// PAYMENT LOGIC
+
+const fetchPaymentSheetParams = async () => {
+    if (!listing) return { paymentIntent: null, ephemeralKey: null, customer: null };
+
+    const response = await fetch("/api/stripe-server", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        listingId: listing.id 
+      }),
+    });
+    const { paymentIntent, ephemeralKey, customer } = await response.json();
+
+    return {
+      paymentIntent,
+      ephemeralKey,
+      customer,
+    };
+  };
+
+  const initializePaymentSheet = async () => {
+    const { paymentIntent, ephemeralKey, customer } = await fetchPaymentSheetParams();
+    
+    if (!paymentIntent) return;
+
+    const { error } = await initPaymentSheet({
+      merchantDisplayName: "Fair Play App",
+      customerId: customer,
+      customerEphemeralKeySecret: ephemeralKey,
+      paymentIntentClientSecret: paymentIntent,
+      allowsDelayedPaymentMethods: true,
+      defaultBillingDetails: {
+        name: "Jane Doe",
+      },
+      returnURL: "expostripe://stripe-redirect",
+    });
+    if (!error) {
+      setLoadingPayment(true);
+    }
+  };
+
+  const openPaymentSheet = async () => {
+    const { error } = await presentPaymentSheet();
+
+    if (error) {
+      Alert.alert(`Error code: ${error.code}`, error.message);
+    } else {
+      Alert.alert("Success", "Your order is confirmed!");
+    }
+  };
+
+  useEffect(() => {
+    if (listing) {
+      initializePaymentSheet();
+    }
+  }, [listing]);
 
   if (!listing || !listing.events) {
     return (
@@ -108,8 +170,8 @@ export default function ListingDetails() {
         <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <Button>Buy</Button>
-            <Button>Make Offer</Button>
+          <Button disabled={!loadingPayment} onPress={openPaymentSheet}>Buy</Button>
+          <Button>Make Offer</Button>
         </View>
 
         <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />
