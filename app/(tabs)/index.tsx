@@ -70,9 +70,11 @@ export default function Index() {
   };
 
   const aiPriceColourLogic = (userPrice: number, aiPrice: number) => {
-    if (Math.abs(aiPrice - userPrice) >= 10)
+    const aiPriceFive = aiPrice/100*5
+
+    if (userPrice >= aiPrice + (aiPriceFive*2))
       aiPriceColour = "red"
-    else if (Math.abs(aiPrice - userPrice) >= 5)
+    else if (userPrice >= aiPrice + aiPriceFive)
       aiPriceColour = "orange"
     else
       aiPriceColour = "green"
@@ -126,12 +128,13 @@ export default function Index() {
       <View style={{ paddingHorizontal: 16 }}>
         <TextInput
           placeholder="Search for items..."
-          placeholderTextColor="#ECEDEE"
+          placeholderTextColor={Colors[colorScheme].text}
           style={{
             backgroundColor: Colors[colorScheme].icon,
             borderRadius: 12,
             padding: 12,
             fontSize: 16,
+            color: Colors[colorScheme].text
           }}
         />
       </View>

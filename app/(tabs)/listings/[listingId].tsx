@@ -22,6 +22,7 @@ type ListingWithEvent = {
   seller_id: string;
   status: string;
   listing_price: number;
+  ai_suggested_price: number;
   events: Event; 
 };
 
@@ -30,6 +31,8 @@ export default function ListingDetails() {
   const colorScheme = useColorScheme() ?? 'light';
   const [listing, setListing] = useState<ListingWithEvent | null>(null);
   const [loading, setLoading] = useState(true);
+  let aiPriceColour = "green"
+
 
   useEffect(() => {
     fetchListing();
@@ -62,8 +65,20 @@ export default function ListingDetails() {
     );
   }
 
-  console.log("Event Data from Supabase:", listing.events);
+  const aiPriceColourLogic = (userPrice: number, aiPrice: number) => {
+    const aiPriceFive = aiPrice/100*5
 
+    if (userPrice >= aiPrice + (aiPriceFive*2))
+      aiPriceColour = "red"
+    else if (userPrice >= aiPrice + aiPriceFive)
+      aiPriceColour = "orange"
+    else
+      aiPriceColour = "green"
+  }
+
+  console.log("Event Data from Supabase:", listing.events);
+  aiPriceColourLogic(listing.listing_price, listing.ai_suggested_price)
+  
   return (
     <ScrollView style={{ flex: 1, backgroundColor: Colors[colorScheme].background }}>
       
@@ -76,7 +91,7 @@ export default function ListingDetails() {
           <Text style={{ fontSize: 24, fontWeight: "800", color: Colors[colorScheme].text, flex: 1, marginRight: 12 }}>
             {listing.events.title}
           </Text>
-          <Text style={{ fontSize: 24, fontWeight: "800", color: '#0a7ea4' }}>
+          <Text style={{ fontSize: 24, fontWeight: "800", color: aiPriceColour }}>
             €{listing.listing_price}
           </Text>
         </View>
