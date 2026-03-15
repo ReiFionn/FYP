@@ -1,6 +1,7 @@
+import { Colors } from "@/constants/theme";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, Button, FlatList, KeyboardAvoidingView, Platform } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { Button, FlatList, KeyboardAvoidingView, Platform, Text, TextInput, useColorScheme, View } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
 type Msg = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
@@ -12,6 +13,8 @@ export default function Chat() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
+  const colorScheme = useColorScheme() ?? 'light';
+  
 
   useEffect(() => {
     (async () => {
@@ -71,9 +74,9 @@ export default function Chat() {
   }
 
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: "#fff" }}>
-      <Text style={{ fontSize: 18, fontWeight: "700", color: "#111", marginBottom: 10 }}>
-        Chat
+    <View style={{ flex: 1, padding: 16, backgroundColor: Colors[colorScheme].background }}>
+      <Text style={{ fontSize: 18, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 10 }}>
+        {otherUserId}
       </Text>
 
       <FlatList
@@ -82,10 +85,10 @@ export default function Chat() {
         keyExtractor={(m) => m.id}
         renderItem={({ item }) => (
           <View style={{ paddingVertical: 6 }}>
-            <Text style={{ color: "#111", fontWeight: item.sender_id === myId ? "700" : "400" }}>
+            <Text style={{ color: Colors[colorScheme].text, fontWeight: item.sender_id === myId ? "700" : "400" }}>
               {item.sender_id === myId ? "Me" : "Them"}: {item.body}
             </Text>
-            <Text style={{ color: "#777", fontSize: 12 }}>
+            <Text style={{ color: Colors[colorScheme].tint, fontSize: 12 }}>
               {new Date(item.created_at).toLocaleTimeString()}
             </Text>
           </View>
@@ -98,10 +101,10 @@ export default function Chat() {
             value={draft}
             onChangeText={setDraft}
             placeholder="Message…"
-            placeholderTextColor="#888"
-            style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", padding: 10, borderRadius: 10, color: "#111" }}
+            placeholderTextColor={Colors[colorScheme].tint}
+            style={{ flex: 1, borderWidth: 1, borderColor: Colors[colorScheme].tint, padding: 10, borderRadius: 10, color: Colors[colorScheme].tint }}
           />
-          <Button title="Send" onPress={send} />
+          <Button title="Send" onPress={send} color={Colors[colorScheme].text}/>
         </View>
       </KeyboardAvoidingView>
     </View>

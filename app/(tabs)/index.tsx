@@ -123,7 +123,7 @@ export default function Index() {
 
   return (
     <View style={{ flex: 1, padding: 16, backgroundColor: Colors[colorScheme].background }}>
-          <Text style={{ fontSize: 22, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 12 }}>Fair Play</Text>
+          <Text style={{ fontSize: 22, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 12 }}>Agorex</Text>
 
       <View style={{ paddingHorizontal: 16 }}>
         <TextInput
