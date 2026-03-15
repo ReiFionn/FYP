@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, Pressable, Button } from "react-native";
-import { router } from "expo-router";
-import { supabase } from "../../lib/supabase";
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { FlatList, Pressable, Text, View } from "react-native";
+import { supabase } from "../../lib/supabase";
 
 type Profile = { id: string; email: string | null; display_name: string | null };
 
@@ -13,19 +13,33 @@ export default function Users() {
   const [me, setMe] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
 
-  async function load() {
-    const { data: u } = await supabase.auth.getUser();
-    if (!u.user) return router.replace("/(auth)/login"); // if not logged in, go to login
-    setMe(u.user.id);
+async function load() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return router.replace("/(auth)/login");
+  setMe(user.id);
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id,email,display_name")
-      .order("created_at", { ascending: false });
+  const { data: convos, error: convoError } = await supabase
+    .from("conversations")
+    .select("user1_id, user2_id")
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .order("last_message_at", { ascending: false });
 
-    if (error) return alert(error.message);
-    setProfiles((data ?? []).filter(p => p.id !== u.user!.id)); // exclude self
-  }
+  if (convoError) return alert(convoError.message);
+  if (!convos || convos.length === 0) return setProfiles([]);
+
+  const otherUserIds = convos.map((c) =>
+    c.user1_id === user.id ? c.user2_id : c.user1_id
+  );
+
+  const { data: profilesData, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, email, display_name")
+    .in("id", otherUserIds); 
+
+  if (profilesError) return alert(profilesError.message);
+  
+  setProfiles(profilesData ?? []);
+}
 
   useEffect(() => {
     load();
@@ -54,7 +68,7 @@ export default function Users() {
             </Text>
           </Pressable>
         )}
-        ListEmptyComponent={<Text style={{ color: Colors[colorScheme].text, marginTop: 20 }}>No other users yet.</Text>}
+        ListEmptyComponent={<Text style={{ color: Colors[colorScheme].text, marginTop: 20 }}>You haven't messaged anyone yet.</Text>}
       />
     </View>
   );
