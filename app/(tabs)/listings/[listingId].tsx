@@ -3,7 +3,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from "@/lib/supabase";
 import { Button } from '@react-navigation/elements';
 import { useStripe } from "@stripe/stripe-react-native";
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, Text, View } from 'react-native';
 
@@ -171,7 +171,7 @@ const fetchPaymentSheetParams = async () => {
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Button disabled={!loadingPayment} onPress={openPaymentSheet}>Buy</Button>
-          <Button>Make Offer</Button>
+          <Button onPress={() => router.push(`/chat/${listing.seller_id}`)}>Make Offer</Button>
         </View>
 
         <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />

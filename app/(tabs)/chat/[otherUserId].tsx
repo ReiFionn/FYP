@@ -5,6 +5,7 @@ import { Button, FlatList, KeyboardAvoidingView, Platform, Text, TextInput, useC
 import { supabase } from "../../../lib/supabase";
 
 type Msg = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
+type Profile = { id: string; email: string | null; display_name: string | null };
 
 export default function Chat() {
   const { otherUserId } = useLocalSearchParams<{ otherUserId: string }>();
@@ -14,8 +15,10 @@ export default function Chat() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const colorScheme = useColorScheme() ?? 'light';
-  
+  const [otherProfile, setOtherProfile] = useState<Profile | null>(null);
+  const [me, setMe] = useState<string | null>(null);
 
+  
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
@@ -25,6 +28,8 @@ export default function Chat() {
       const { data: cid, error } = await supabase.rpc("get_or_create_dm", { other_user: otherUserId }); // calls postgres function
       if (error) return alert(error.message);
       setConversationId(cid as string);
+
+      load();
     })();
   }, [otherUserId]);
 
@@ -73,10 +78,26 @@ export default function Chat() {
     if (error) alert(error.message);
   }
 
+async function load() {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) return router.replace("/(auth)/login");
+  setMe(u.user.id);
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,email,display_name")
+    .eq("id", otherUserId)
+    .single();
+
+  if (error) return alert(error.message);
+  
+  setOtherProfile(data);
+}
+
   return (
     <View style={{ flex: 1, padding: 16, backgroundColor: Colors[colorScheme].background }}>
       <Text style={{ fontSize: 18, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 10 }}>
-        {otherUserId}
+        {otherProfile?.display_name}
       </Text>
 
       <FlatList
