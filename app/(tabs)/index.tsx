@@ -29,7 +29,8 @@ type ListingWithEvent = {
 
 export default function Index() {
   const colorScheme = useColorScheme() ?? 'light';
-  const [data, setData] = useState<ListingWithEvent[]>([]);
+  const [allData, setAllData] = useState<ListingWithEvent[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
@@ -55,7 +56,7 @@ export default function Index() {
       if (error) throw error;
 
       if (listings) {
-        setData(listings as unknown as ListingWithEvent[]); // force type to match
+        setAllData(listings as unknown as ListingWithEvent[]); // force type to match
       }
     } catch (error) {
       console.error('Error fetching listings:', error);
@@ -79,6 +80,10 @@ export default function Index() {
     else
       aiPriceColour = "green"
   }
+
+  const displayedListings = allData.filter(listing => 
+    listing.events.title?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const renderListing: ListRenderItem<ListingWithEvent> = ({ item }) => {
     if (!item.events) return null;
@@ -122,67 +127,62 @@ export default function Index() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: Colors[colorScheme].background }}>
-          <Text style={{ fontSize: 22, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 12 }}>Agorex</Text>
-
-      <View style={{ paddingHorizontal: 16 }}>
-        <TextInput
-          placeholder="Search for items..."
-          placeholderTextColor={Colors[colorScheme].text}
-          style={{
-            backgroundColor: Colors[colorScheme].icon,
-            borderRadius: 12,
-            padding: 12,
-            fontSize: 16,
-            color: Colors[colorScheme].text
-          }}
-        />
-      </View>
-
+    <View style={{ flex: 1, backgroundColor: Colors[colorScheme].background }}>
       <FlatList
-        horizontal
-        data={CATEGORIES}
-        keyExtractor={(c) => c}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 2}}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={{
-              height: 40,
-              paddingVertical: 0, 
-              paddingHorizontal: 20,
-              borderRadius: 20,
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              marginRight: 2,
-              backgroundColor: Colors[colorScheme].icon,
-            }}
-          >
-            <Text numberOfLines={1} 
-              style={{ 
-                color: Colors[colorScheme].text, 
-                fontWeight: "600",
-                fontSize: 14,
-              }}>
-            {item}
-            </Text>
-          </TouchableOpacity>
-        )}
-      />
-
-      <FlatList
-        data={data}
+        data={displayedListings}
         keyExtractor={(i) => i.id}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
         renderItem={renderListing}
+        contentContainerStyle={{ padding: 16 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        ListHeaderComponent={
+          <View style={{ marginBottom: 8 }}>
+            <Text style={{ fontSize: 22, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 12 }}>
+              Agorex
+            </Text>
+
+            <TextInput
+              placeholder="Search for items..."
+              placeholderTextColor={Colors[colorScheme].tabIconDefault}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={{
+                backgroundColor: Colors[colorScheme].icon,
+                borderRadius: 12,
+                padding: 12,
+                fontSize: 16,
+                color: Colors[colorScheme].text,
+                marginBottom: 12
+              }}
+            />
+
+            <FlatList
+              horizontal
+              data={CATEGORIES}
+              keyExtractor={(c) => c}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingVertical: 8, gap: 8 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={{
+                    height: 40,
+                    paddingHorizontal: 20,
+                    borderRadius: 20,
+                    justifyContent: 'center',
+                    backgroundColor: Colors[colorScheme].icon,
+                  }}
+                >
+                  <Text style={{ color: Colors[colorScheme].text, fontWeight: "600" }}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        }
+        ListEmptyComponent={() => (
+          <Text style={{ color: 'gray', textAlign: 'center', marginTop: 40 }}>No events found.</Text>
+        )}
       />
     </View>
   );
 }
-function setRefreshing(arg0: boolean) {
-  throw new Error('Function not implemented.');
-}
-
