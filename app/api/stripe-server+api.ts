@@ -1,5 +1,5 @@
-import Stripe from "stripe";
 import { supabase } from "@/lib/supabase";
+import Stripe from "stripe";
 
 export async function POST(req: Request) {
   const stripe = new Stripe(process.env.STRIPE_PRIVATE_KEY!);
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
 
     const amountInCents = Math.round(listing.listing_price * 100);
 
+    //TODO: Add info about the customer?
     const customer = await stripe.customers.create({});
 
     const customerSession = await stripe.customerSessions.create({
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
       automatic_payment_methods: {
         enabled: true,
       },
+      metadata: { listingId },
     });
 
     return new Response(

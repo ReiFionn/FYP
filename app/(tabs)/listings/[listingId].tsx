@@ -87,8 +87,9 @@ const fetchPaymentSheetParams = async () => {
     
     if (!paymentIntent) return;
 
+    //TODO: Add billing details
     const { error } = await initPaymentSheet({
-      merchantDisplayName: "Fair Play App",
+      merchantDisplayName: "Agorex",
       customerId: customer,
       customerEphemeralKeySecret: ephemeralKey,
       paymentIntentClientSecret: paymentIntent,
