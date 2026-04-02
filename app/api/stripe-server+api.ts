@@ -1,18 +1,23 @@
 import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 
 export async function POST(req: Request) {
   const stripe = new Stripe(process.env.STRIPE_PRIVATE_KEY!);
+  const supabaseAdmin = createClient(
+  process.env.EXPO_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
   
   try {
     const body = await req.json();
-    const { listingId } = body;
+    const { listingId, buyerId } = body;
 
-    if (!listingId) {
-      return new Response(JSON.stringify({ error: "Missing listingId" }), { status: 400 });
+    if (!listingId || !buyerId) {
+      return new Response(JSON.stringify({ error: "Missing listingId or buyerId" }), { status: 400 });
     }
 
-    const { data: listing, error: dbError } = await supabase
+    const { data: listing, error: dbError } = await supabaseAdmin
       .from('listings')
       .select('listing_price')
       .eq('id', listingId)
@@ -22,13 +27,28 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: "Listing not found" }), { status: 404 });
     }
 
+    const { data: profile, error: profileError } = await supabaseAdmin.from('profiles').select('stripe_customer_id').eq('id', buyerId).single();
+    
+    if (profileError) {
+      return new Response(JSON.stringify({ error: "Error fetching buyer profile" }), { status: 500 });
+    }
+
+    let stripeCustomerId = profile?.stripe_customer_id;
+
     const amountInCents = Math.round(listing.listing_price * 100);
 
-    //TODO: Add info about the customer?
-    const customer = await stripe.customers.create({});
+    if (!stripeCustomerId) {
+      const newCustomer = await stripe.customers.create({});
+      stripeCustomerId = newCustomer.id;
+
+      await supabaseAdmin
+        .from('profiles')
+        .update({ stripe_customer_id: stripeCustomerId })
+        .eq('id', buyerId);
+    }
 
     const customerSession = await stripe.customerSessions.create({
-      customer: customer.id,
+      customer: stripeCustomerId,
       components: {
         mobile_payment_element: {
           enabled: true,
@@ -44,7 +64,7 @@ export async function POST(req: Request) {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: "eur",
-      customer: customer.id,
+      customer: stripeCustomerId,
       automatic_payment_methods: {
         enabled: true,
       },
@@ -55,7 +75,7 @@ export async function POST(req: Request) {
       JSON.stringify({
         paymentIntent: paymentIntent.client_secret,
         customerSessionClientSecret: customerSession.client_secret,
-        customer: customer.id,
+        customer: stripeCustomerId,
         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }

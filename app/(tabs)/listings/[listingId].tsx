@@ -64,13 +64,21 @@ export default function ListingDetails() {
 const fetchPaymentSheetParams = async () => {
     if (!listing) return { paymentIntent: null, ephemeralKey: null, customer: null };
 
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error("Authentication error or user not logged in");
+      return { paymentIntent: null, ephemeralKey: null, customer: null };
+    }
+
     const response = await fetch("/api/stripe-server", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        listingId: listing.id 
+        listingId: listing.id,
+        buyerId: user.id
       }),
     });
     const { paymentIntent, ephemeralKey, customer } = await response.json();
