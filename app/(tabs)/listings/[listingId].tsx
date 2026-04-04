@@ -5,7 +5,7 @@ import { Button } from '@react-navigation/elements';
 import { useStripe } from "@stripe/stripe-react-native";
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from "react";
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, Text, View } from 'react-native';
 
 type Event = {
   id: string;
@@ -56,7 +56,7 @@ export default function ListingDetails() {
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute:'2-digit' });
   };
 
     ///////////////////////////// PAYMENT LOGIC
@@ -153,9 +153,10 @@ const fetchPaymentSheetParams = async () => {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: Colors[colorScheme].background }}>
       
-      {/* <View style={{ height: 250, backgroundColor: Colors[colorScheme].icon, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ height: 250, backgroundColor: Colors[colorScheme].icon, justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ color: Colors[colorScheme].tabIconDefault }}>Event Image Placeholder</Text>
-      </View> */}
+        <Image></Image>
+      </View>
 
       <View style={{ padding: 20 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -186,9 +187,25 @@ const fetchPaymentSheetParams = async () => {
         <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />
 
         <Text style={{ color: Colors[colorScheme].text, fontSize: 18, fontWeight: '700' }}>Ticket Details</Text>
-        <Text style={{ color: Colors[colorScheme].tabIconDefault, marginTop: 8 }}>
-          xxxxxxxxxxxxxxxxxxxxxx
-        </Text>
+        <View style={{ marginLeft: 20 }}>
+          <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Seller: {listing.seller_id}</Text>
+          <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>AI Suggested Price: €{listing.ai_suggested_price}</Text>
+          <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Event:</Text>
+          
+          <View style={{ marginLeft: 20 }}>
+            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Title: {listing.events.title}</Text>
+            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Start Time: {formatDate(listing.events.start_time)}</Text>
+            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Category: {listing.events.category}</Text>
+            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Venue Name: {listing.events.venue_name}</Text>
+            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Venue Address:</Text>
+            
+            <View style={{ marginLeft: 20 }}>
+              <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>{listing.events.address_line1}</Text>
+              <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>{listing.events.city}</Text>
+              <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>{listing.events.region}</Text>
+            </View>
+          </View>
+        </View>
 
       </View>
     </ScrollView>
