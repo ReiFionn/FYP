@@ -64,52 +64,54 @@ export default function ListingDetails() {
     ///////////////////////////// PAYMENT LOGIC
 
 const fetchPaymentSheetParams = async () => {
-    if (!listing) return { paymentIntent: null, ephemeralKey: null, customer: null };
+  if (!listing) return { paymentIntent: null, ephemeralKey: null, customer: null };
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { paymentIntent: null, ephemeralKey: null, customer: null };
 
-    if (authError || !user) {
-      console.error("Authentication error or user not logged in");
-      return { paymentIntent: null, ephemeralKey: null, customer: null };
-    }
+  // Just use invoke. Do not use fetch() after this.
+  const { data, error } = await supabase.functions.invoke('stripe-server', {
+    body: { listingId: listing.id, buyerId: user.id }
+  });
 
-    const response = await fetch("/api/stripe-server", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        listingId: listing.id,
-        buyerId: user.id
-      }),
-    });
-    const { paymentIntent, ephemeralKey, customer } = await response.json();
+  if (error) {
+    const errorDetails = await error.response?.json();
+    console.error("Function Error Detail:", errorDetails || error.message);
+    return { paymentIntent: null, ephemeralKey: null, customer: null };
+  }
 
-    return {
-      paymentIntent,
-      ephemeralKey,
-      customer,
-    };
+  return { 
+    paymentIntent: data.paymentIntent, 
+    ephemeralKey: data.ephemeralKey, 
+    customer: data.customer 
   };
+};
 
   const initializePaymentSheet = async () => {
+    console.log("1. Starting Payment Sheet Init...");
     const { paymentIntent, ephemeralKey, customer } = await fetchPaymentSheetParams();
     
-    if (!paymentIntent) return;
+    console.log("2. Params received:", { paymentIntent: !!paymentIntent, customer: !!customer });
+    
+    if (!paymentIntent) {
+      console.log("3. Aborting: No paymentIntent found.");
+      return;
+    }
 
-    //TODO: Add billing details
+    console.log("4. Calling initPaymentSheet...");
     const { error } = await initPaymentSheet({
       merchantDisplayName: "Agorex",
       customerId: customer,
       customerEphemeralKeySecret: ephemeralKey,
       paymentIntentClientSecret: paymentIntent,
       allowsDelayedPaymentMethods: true,
-      defaultBillingDetails: {
-        name: "Jane Doe",
-      },
       returnURL: "expostripe://stripe-redirect",
     });
-    if (!error) {
+
+    if (error) {
+      console.log("5. Stripe Init Error:", error);
+    } else {
+      console.log("6. Success! Enabling button.");
       setLoadingPayment(true);
     }
   };
