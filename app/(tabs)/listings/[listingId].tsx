@@ -35,6 +35,30 @@ export default function ListingDetails() {
   let aiPriceColour = "green"
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [loadingPayment, setLoadingPayment] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+useEffect(() => {
+    setImageUrl(null); 
+
+    const fetchArtistImage = async () => {
+      if (!listing?.events?.title) return;
+
+      const { data, error } = await supabase.functions.invoke('get-artist-image', {
+        body: { artistName: listing.events.title },
+      });
+
+      if (error) {
+        console.error("Edge Function Error:", error);
+        return;
+      }
+
+      if (data?.imageUrl) {
+        setImageUrl(data.imageUrl);
+      }
+    };
+
+    fetchArtistImage();
+  }, [listing?.events?.title]);
 
   useEffect(() => {
     fetchListing();
@@ -153,10 +177,17 @@ const fetchPaymentSheetParams = async () => {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: Colors[colorScheme].background }}>
       
-      <View style={{ height: 250, backgroundColor: Colors[colorScheme].icon, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: Colors[colorScheme].tabIconDefault }}>Event Image Placeholder</Text>
-        <Image></Image>
-      </View>
+      {imageUrl ? (
+        <Image 
+          source={{ uri: imageUrl }} 
+          style={{ width: '100%', height: 250 }} 
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={{ height: 250, backgroundColor: Colors[colorScheme].icon, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: Colors[colorScheme].tabIconDefault }}>Placeholder</Text>
+        </View>
+      )}
 
       <View style={{ padding: 20 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
