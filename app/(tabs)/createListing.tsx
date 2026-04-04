@@ -134,6 +134,12 @@ const categoryData = [
         receiptUrl = publicUrlData.publicUrl;
       }
 
+      const { data: imgData, error: imgError } = await supabase.functions.invoke('get-artist-image', {
+        body: { artistName: title },
+      });
+      
+      const fetchedArtistImageUrl = imgData?.imageUrl || null;
+
       const { data: newListing, error: listingError } = await supabase
         .from('listings')
         .insert([{
@@ -142,6 +148,7 @@ const categoryData = [
           status: 'active',
           listing_price: parseFloat(price),
           ai_suggested_price: aiPrice,
+          artist_image_url: fetchedArtistImageUrl,
           original_purchase_metadata: {
             source: platformOfPuchase || "App Form",
             time: dateMetadata.toISOString(),

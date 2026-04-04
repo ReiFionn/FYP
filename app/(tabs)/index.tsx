@@ -2,7 +2,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from "react";
-import { FlatList, ListRenderItem, RefreshControl, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { FlatList, Image, ListRenderItem, RefreshControl, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../lib/supabase";
 
 const CATEGORIES = ["Today", "Rock", "Pop", "Rap", "Electronic"];
@@ -24,7 +24,8 @@ type ListingWithEvent = {
   status: string;
   listing_price: number;
   ai_suggested_price: number;
-  events: Event; 
+  events: Event;
+  artist_image_url: string;
 };
 
 export default function Index() {
@@ -102,6 +103,20 @@ export default function Index() {
           overflow: "hidden",
         }}
       >
+
+        <View>
+          {item.artist_image_url ? (
+              <Image 
+                source={{ uri: item.artist_image_url }} 
+                style={{ width: '100%', height: 160 }} 
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={{ height: 160, backgroundColor: Colors[colorScheme].icon, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: Colors[colorScheme].tabIconDefault }}>Placeholder</Text>
+              </View>
+            )}
+        </View>
 
         <View style={{ padding: 12 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
