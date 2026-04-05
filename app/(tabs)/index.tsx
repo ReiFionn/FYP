@@ -153,7 +153,7 @@ export default function Index() {
         }
         ListHeaderComponent={
           <View style={{ marginBottom: 8 }}>
-            <Text style={{ fontSize: 22, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 12 }}>
+            <Text style={{ fontSize: 28, fontWeight: "800", color: Colors[colorScheme].text, marginBottom: 12 }}>
               Agorex
             </Text>
 

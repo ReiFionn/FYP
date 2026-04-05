@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from "react";
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 type Profile = {
   id: string;
@@ -217,30 +217,23 @@ export default function Profile() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.background }}>
-      <View style={[styles.header, { borderBottomColor: theme.icon }]}>
+      <View style={{ alignItems: 'center', paddingVertical: 30, borderBottomWidth: 1, borderBottomColor: theme.icon }}>
         <TouchableOpacity onPress={handlePicturePress} activeOpacity={0.8}>
           <Image
             source={{ uri: profile?.picture_url || 'https://cdn.vectorstock.com/i/500p/08/19/gray-human-icon-profile-placeholder-vector-35850819.jpg' }}
-            style={[
-              styles.avatar,
-              { 
-                borderWidth: 2, 
-                borderColor: theme.icon, 
-                backgroundColor: theme.background
-              }
-            ]}
+            style={{ width: 100, height: 100, borderRadius: 50, marginBottom: 12 , borderWidth: 2, borderColor: theme.icon, backgroundColor: theme.background }}
           />
         </TouchableOpacity>
-        <Text style={[styles.name, { color: theme.text }]}>
+        <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 4, color: theme.text }}>
           {profile?.display_name}
         </Text>
-        <Text style={styles.stars}>
+        <Text style={{ fontSize: 18, letterSpacing: 2 }}>
           {renderStars(profile?.trust_rating || 0)} <Text style={{ color: theme.tabIconDefault, fontSize: 14 }}>({Number(profile?.trust_rating || 0).toFixed(1)}/5)</Text>
         </Text>
       </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Current Listings</Text>
+      <View style={{padding: 20}}>
+        <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 16 , color: theme.text }}>Current Listings</Text>
         {listings.length > 0 ? (
           listings.map(item => renderItemCard(item, 'Listing'))
         ) : (
@@ -248,9 +241,8 @@ export default function Profile() {
         )}
       </View>
 
-      {/* Past Purchases Section */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Past Purchases</Text>
+      <View style={{padding: 20}}>
+        <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 16 , color: theme.text }}>Past Purchases</Text>
         {purchases.length > 0 ? (
           purchases.map(item => renderItemCard(item, 'Purchase'))
         ) : (
@@ -259,37 +251,22 @@ export default function Profile() {
       </View>
       <TouchableOpacity 
         onPress={handleLogout} 
-        style={[styles.logoutButton, { borderColor: theme.icon }]}
+        style={{ 
+          padding: 16, 
+          marginHorizontal: 20, 
+          marginBottom: 40, 
+          borderWidth: 1, 
+          borderRadius: 8, 
+          alignItems: 'center',
+          borderColor: theme.icon 
+        }}
       >
-        <Text style={styles.logoutText}>Log Out</Text>
+        <Text style={{ 
+          color: 'red', 
+          fontSize: 16, 
+          fontWeight: '700' 
+        }}>Log Out</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { alignItems: 'center', paddingVertical: 30, borderBottomWidth: 1 },
-  avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 12 },
-  name: { fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
-  stars: { fontSize: 18, letterSpacing: 2 },
-  section: { padding: 20 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16 },
-  card: { padding: 16, borderWidth: 1, borderRadius: 8, marginBottom: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
-  cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  price: { fontWeight: 'bold', fontSize: 16 },
-  logoutButton: { 
-    padding: 16, 
-    marginHorizontal: 20, 
-    marginBottom: 40, 
-    borderWidth: 1, 
-    borderRadius: 8, 
-    alignItems: 'center' 
-  },
-  logoutText: { 
-    color: 'red', 
-    fontSize: 16, 
-    fontWeight: '700' 
-  }
-});

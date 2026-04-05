@@ -1,7 +1,8 @@
 import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Button, FlatList, KeyboardAvoidingView, Platform, Text, TextInput, useColorScheme, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
 type Msg = { id: string; conversation_id: string; sender_id: string; body: string; created_at: string };
@@ -9,27 +10,28 @@ type Profile = { id: string; email: string | null; display_name: string | null }
 
 export default function Chat() {
   const { otherUserId } = useLocalSearchParams<{ otherUserId: string }>();
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
 
   const [myId, setMyId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
-  const colorScheme = useColorScheme() ?? 'light';
   const [otherProfile, setOtherProfile] = useState<Profile | null>(null);
-  const [me, setMe] = useState<string | null>(null);
-
   
+  const flatListRef = useRef<FlatList>(null);
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
-      if (!data.user) return router.replace("/(auth)/login"); // if not logged in, go to login
+      if (!data.user) return router.replace("/(auth)/login");
       setMyId(data.user.id);
 
-      const { data: cid, error } = await supabase.rpc("get_or_create_dm", { other_user: otherUserId }); // calls postgres function
+      const { data: cid, error } = await supabase.rpc("get_or_create_dm", { other_user: otherUserId });
       if (error) return alert(error.message);
       setConversationId(cid as string);
 
-      load();
+      loadProfile();
     })();
   }, [otherUserId]);
 
@@ -46,22 +48,31 @@ export default function Chat() {
       if (error) return alert(error.message);
       setMessages((data ?? []) as Msg[]);
     })();
-
-    // https://supabase.com/docs/guides/realtime/postgres-changes
     
     const channel = supabase
       .channel(`dm:${conversationId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "conversation_messages", filter: `conversation_id=eq.${conversationId}` }, // listen for new messages in this conversation
-        (payload) => setMessages((prev) => [...prev, payload.new as Msg]) // append new message to state
+        { event: "INSERT", schema: "public", table: "conversation_messages", filter: `conversation_id=eq.${conversationId}` },
+        (payload) => setMessages((prev) => [...prev, payload.new as Msg])
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId]); // reload messages when conversationId is set
+  }, [conversationId]);
+
+  async function loadProfile() {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id,email,display_name")
+      .eq("id", otherUserId)
+      .single();
+
+    if (error) return alert(error.message);
+    setOtherProfile(data);
+  }
 
   async function send() {
     if (!myId || !conversationId) return;
@@ -73,61 +84,75 @@ export default function Chat() {
       conversation_id: conversationId,
       sender_id: myId,
       body,
-    }); // insert new message into database
+    });
 
     if (error) alert(error.message);
   }
 
-async function load() {
-  const { data: u } = await supabase.auth.getUser();
-  if (!u.user) return router.replace("/(auth)/login");
-  setMe(u.user.id);
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id,email,display_name")
-    .eq("id", otherUserId)
-    .single();
-
-  if (error) return alert(error.message);
-  
-  setOtherProfile(data);
-}
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: Colors[colorScheme].background }}>
-      <Text style={{ fontSize: 18, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 10 }}>
-        {otherProfile?.display_name}
-      </Text>
+    <KeyboardAvoidingView 
+      style={{ flex: 1, backgroundColor: theme.background }} 
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0} 
+    >
+      <View style={{ paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: StyleSheet.hairlineWidth, alignItems: 'center', borderBottomColor: theme.icon }}>
+        <Text style={{ fontSize: 18, fontWeight: "700", color: theme.text }}>
+          {otherProfile?.display_name || "Loading..."}
+        </Text>
+      </View>
 
       <FlatList
-        style={{ flex: 1 }}
+        ref={flatListRef}
+        style={{ flex: 1, paddingHorizontal: 16 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 10 }}
         data={messages}
         keyExtractor={(m) => m.id}
-        renderItem={({ item }) => (
-          <View style={{ paddingVertical: 6 }}>
-            <Text style={{ color: Colors[colorScheme].text, fontWeight: item.sender_id === myId ? "700" : "400" }}>
-              {item.sender_id === myId ? "Me" : "Them"}: {item.body}
-            </Text>
-            <Text style={{ color: Colors[colorScheme].tint, fontSize: 12 }}>
-              {new Date(item.created_at).toLocaleTimeString()}
-            </Text>
-          </View>
-        )}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        renderItem={({ item }) => {
+          const isMe = item.sender_id === myId;
+          return (
+            <View style={{ flexDirection: "row", marginBottom: 12, justifyContent: isMe ? "flex-end" : "flex-start" }}>
+              <View style={[
+                { maxWidth: "75%", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
+                isMe ? {borderBottomRightRadius: 4, backgroundColor: theme.tint } : {borderBottomLeftRadius: 4,  backgroundColor: theme.icon }
+              ]}>
+                <Text style={{ color: theme.text, fontSize: 16 }}>
+                  {item.body}
+                </Text>
+                <Text style={{ fontSize: 11, marginTop: 4, alignSelf: isMe ? 'flex-end' : 'flex-start', color: theme.text }}>
+                  {formatTime(item.created_at)}
+                </Text>
+              </View>
+            </View>
+          );
+        }}
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder="Message…"
-            placeholderTextColor={Colors[colorScheme].tint}
-            style={{ flex: 1, borderWidth: 1, borderColor: Colors[colorScheme].tint, padding: 10, borderRadius: 10, color: Colors[colorScheme].tint }}
-          />
-          <Button title="Send" onPress={send} color={Colors[colorScheme].text}/>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+      <View style={{ flexDirection: "row", paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, alignItems: 'flex-end', borderTopColor: theme.icon, backgroundColor: theme.background }}>
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          placeholder="Message..."
+          placeholderTextColor={theme.tabIconDefault}
+          style={{ flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, maxHeight: 100, fontSize: 16, color: theme.text, backgroundColor: theme.background, borderColor: theme.icon }}
+          multiline
+          maxLength={500}
+        />
+        <Pressable 
+          onPress={send} 
+          style={({ pressed }) => [
+            { marginLeft: 12, borderRadius: 20, paddingVertical: 12, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: draft.trim() ? theme.tint : theme.icon, opacity: pressed ? 0.8 : 1 }
+          ]}
+          disabled={!draft.trim()}
+        >
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Send</Text>
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
   );
 }

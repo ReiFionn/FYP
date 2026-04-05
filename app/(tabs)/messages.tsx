@@ -2,73 +2,151 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { FlatList, Pressable, Text, View } from "react-native";
+import { FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { supabase } from "../../lib/supabase";
 
-type Profile = { id: string; email: string | null; display_name: string | null };
+type ChatListItem = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  picture_url: string | null;
+  last_message_at: string | null;
+  last_message_text: string | null;
+};
 
 export default function Users() {
   const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
 
-  const [me, setMe] = useState<string | null>(null);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<ChatListItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-async function load() {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return router.replace("/(auth)/login");
-  setMe(user.id);
+  async function load() {
+    const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return router.replace("/(auth)/login");
 
-  const { data: convos, error: convoError } = await supabase
-    .from("conversations")
-    .select("user1_id, user2_id")
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-    .order("last_message_at", { ascending: false });
+      const { data: convos, error: convoError } = await supabase
+      .from("conversations")
+      .select(`
+        id,
+        user1_id, 
+        user2_id, 
+        last_message_at,
+        conversation_messages ( body )
+      `)
+      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+      .order("last_message_at", { ascending: false })
+      .order("created_at", { foreignTable: "conversation_messages", ascending: false })
+      .limit(1, { foreignTable: "conversation_messages" });
 
-  if (convoError) return alert(convoError.message);
-  if (!convos || convos.length === 0) return setProfiles([]);
+      if (convoError) return alert(convoError.message);
+      if (!convos || convos.length === 0) {
+        setProfiles([]);
+        setLoading(false);
+        return;
+      }
 
-  const otherUserIds = convos.map((c) =>
-    c.user1_id === user.id ? c.user2_id : c.user1_id
-  );
+      const otherUserIds = convos.map((c) =>
+        c.user1_id === user.id ? c.user2_id : c.user1_id
+      );
 
-  const { data: profilesData, error: profilesError } = await supabase
-    .from("profiles")
-    .select("id, email, display_name")
-    .in("id", otherUserIds); 
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, email, display_name, picture_url")
+        .in("id", otherUserIds);
 
-  if (profilesError) return alert(profilesError.message);
-  
-  setProfiles(profilesData ?? []);
-}
+      if (profilesError) return alert(profilesError.message);
+
+      const mergedData = convos.map(convo => {
+        const otherId = convo.user1_id === user.id ? convo.user2_id : convo.user1_id;
+        const profile = profilesData?.find(p => p.id === otherId);
+        
+        const lastMessageText = convo.conversation_messages && convo.conversation_messages.length > 0 
+      ? convo.conversation_messages[0].body 
+      : "No messages yet";
+        
+        return {
+          id: otherId,
+          email: profile?.email || null,
+          display_name: profile?.display_name || null,
+          picture_url: profile?.picture_url || null,
+          last_message_at: convo.last_message_at,
+          last_message_text: lastMessageText
+        };
+      });
+
+      setProfiles(mergedData);
+      setLoading(false);
+  }
 
   useEffect(() => {
     load();
   }, []);
 
+  const formatTime = (dateString: string | null) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const today = new Date();
+    if (date.toDateString() === today.toDateString()) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
+
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: Colors[colorScheme].background }}>
-      <Text style={{ fontSize: 22, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 12 }}>
-        Messages
-      </Text>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
+        <Text style={{ fontSize: 28, fontWeight: "800", color: theme.text }}>
+          Messages
+        </Text>
+      </View>
 
       <FlatList
-        style={{ marginTop: 12 }}
         data={profiles}
         keyExtractor={(p) => p.id}
+        contentContainerStyle={{ paddingHorizontal: 16 }}
+        refreshing={loading}
+        onRefresh={load}
         renderItem={({ item }) => (
           <Pressable
-            onPress={() => router.push(`/chat/${item.id}`)} // navigate to chat with this user
-            style={{ padding: 12, borderWidth: 1, borderColor: Colors[colorScheme].background, borderRadius: 12, marginBottom: 10 }}
+            onPress={() => router.push(`/chat/${item.id}`)}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 14,
+              borderBottomWidth: StyleSheet.hairlineWidth,
+              borderColor: theme.icon,
+              opacity: pressed ? 0.7 : 1,
+            })}
           >
-            <Text style={{ color: Colors[colorScheme].text, fontWeight: "600" }}>
-              {item.display_name ?? item.email ?? item.id}
-            </Text>
-            <Text style={{ color: Colors[colorScheme].text, fontSize: 12 }}>
-              {item.email ?? ""}
-            </Text>
+            <Image
+              source={{ uri: item.picture_url || 'https://cdn.vectorstock.com/i/500p/08/19/gray-human-icon-profile-placeholder-vector-35850819.jpg' }}
+              style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: theme.icon }}
+            />
+            
+            <View style={{ flex: 1, marginLeft: 14, justifyContent: 'center' }}>
+              <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 4 }} numberOfLines={1}>
+                {item.display_name ?? item.email ?? "Unknown User"}
+              </Text>
+              <Text style={{ color: theme.tabIconDefault, fontSize: 14 }} numberOfLines={1}>
+                {item.last_message_text}
+              </Text>
+            </View>
+
+            <View style={{ alignItems: 'flex-end', justifyContent: 'flex-start', height: '100%', paddingTop: 4 }}>
+              <Text style={{ color: theme.tabIconDefault, fontSize: 12 }}>
+                {formatTime(item.last_message_at)}
+              </Text>
+            </View>
           </Pressable>
         )}
-        ListEmptyComponent={<Text style={{ color: Colors[colorScheme].text, marginTop: 20 }}>You haven't messaged anyone yet.</Text>}
+        ListEmptyComponent={
+          !loading ? (
+            <View style={{ marginTop: 40, alignItems: 'center' }}>
+              <Text style={{ color: theme.tabIconDefault, fontSize: 16 }}>No messages yet.</Text>
+            </View>
+          ) : null
+        }
       />
     </View>
   );
