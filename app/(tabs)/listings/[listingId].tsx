@@ -64,31 +64,30 @@ export default function ListingDetails() {
 
     ///////////////////////////// PAYMENT LOGIC
 
-const fetchPaymentSheetParams = async () => {
-  if (!listing) return { paymentIntent: null, ephemeralKey: null, customer: null };
+  const fetchPaymentSheetParams = async () => {
+    if (!listing) return { paymentIntent: null, ephemeralKey: null, customer: null };
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { paymentIntent: null, ephemeralKey: null, customer: null };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { paymentIntent: null, ephemeralKey: null, customer: null };
 
-  setBuyerId(user.id);
-  console.log("Payload Check:", { listingId: listing?.id, buyerId: user?.id });
+    setBuyerId(user.id); 
 
-  const { data, error } = await supabase.functions.invoke('stripe-server', {
-    body: { listingId: listing.id, buyerId: buyerId }
-  });
+    const { data, error } = await supabase.functions.invoke('stripe-server', {
+      body: { listingId: listing.id, buyerId: user.id } 
+    });
 
-  if (error) {
-    const errorDetails = await error.response?.json();
-    console.error("Function Error Detail:", errorDetails || error.message);
-    return { paymentIntent: null, ephemeralKey: null, customer: null };
-  }
+    if (error) {
+      const errorDetails = await error.response?.json();
+      console.error("Function Error Detail:", errorDetails || error.message);
+      return { paymentIntent: null, ephemeralKey: null, customer: null };
+    }
 
-  return { 
-    paymentIntent: data.paymentIntent, 
-    ephemeralKey: data.ephemeralKey, 
-    customer: data.customer 
+    return { 
+      paymentIntent: data.paymentIntent, 
+      ephemeralKey: data.ephemeralKey, 
+      customer: data.customer 
+    };
   };
-};
 
   const initializePaymentSheet = async () => {
     console.log("1. Starting Payment Sheet Init...");
@@ -120,19 +119,23 @@ const fetchPaymentSheetParams = async () => {
   };
 
   const openPaymentSheet = async () => {
-    await supabase
-    .from('listings')
-    .update({ active_buyer_id: buyerId })
-    .eq('id', listingId);
+    const { error: lockError } = await supabase.rpc('lock_listing', {
+      p_listing_id: listingId,
+      p_buyer_id: buyerId
+    });
+
+    if (lockError) {
+      console.error("Database lock failed:", lockError.message);
+      return;
+    }
     
     const { error } = await presentPaymentSheet();
 
     if (error) {
-      await supabase
-      .from('listings')
-      .update({ active_buyer_id: null })
-      .eq('id', listingId);
-      
+      await supabase.rpc('unlock_listing', {
+        p_listing_id: listingId
+      });
+        
       console.log("Payment sheet dismissed or failed. Listing unlocked.");
       return;
     } else {
