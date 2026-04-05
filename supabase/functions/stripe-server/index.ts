@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
       automatic_payment_methods: {
         enabled: true,
       },
-      metadata: { listingId },
+      metadata: { listingId: listingId, buyerId: buyerId },
     });
 
     return new Response(

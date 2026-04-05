@@ -36,16 +36,17 @@ Deno.serve(async (req) => {
         const purchasedListingId = paymentIntent.metadata.listingId;
         
         if (purchasedListingId) {
-        const { error } = await supabaseAdmin
-            .from('listings')
-            .update({ status: 'sold' })
-            .eq('id', purchasedListingId);
+          const { error } = await supabaseAdmin
+              .from('listings')
+              .update({ status: 'sold' })
+              .eq('id', purchasedListingId);
 
-        if (error) {
-            console.error("DB Error:", error);
-            return new Response("Database Error", { status: 500 });
-        }
-        console.log(`Listing ${purchasedListingId} sold.`);
+          if (error) {
+              console.error("DB Error:", error);
+              return new Response("Database Error", { status: 500 });
+          }
+
+          console.log(`Listing ${purchasedListingId} sold.`);
         }
     }
 

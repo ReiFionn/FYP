@@ -37,6 +37,7 @@ export default function ListingDetails() {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [loadingPayment, setLoadingPayment] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [buyerId, setBuyerId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchListing();
@@ -69,9 +70,11 @@ const fetchPaymentSheetParams = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { paymentIntent: null, ephemeralKey: null, customer: null };
 
-  // Just use invoke. Do not use fetch() after this.
+  setBuyerId(user.id);
+  console.log("Payload Check:", { listingId: listing?.id, buyerId: user?.id });
+
   const { data, error } = await supabase.functions.invoke('stripe-server', {
-    body: { listingId: listing.id, buyerId: user.id }
+    body: { listingId: listing.id, buyerId: buyerId }
   });
 
   if (error) {
@@ -117,10 +120,21 @@ const fetchPaymentSheetParams = async () => {
   };
 
   const openPaymentSheet = async () => {
+    await supabase
+    .from('listings')
+    .update({ active_buyer_id: buyerId })
+    .eq('id', listingId);
+    
     const { error } = await presentPaymentSheet();
 
     if (error) {
-      Alert.alert(`Error code: ${error.code}`, error.message);
+      await supabase
+      .from('listings')
+      .update({ active_buyer_id: null })
+      .eq('id', listingId);
+      
+      console.log("Payment sheet dismissed or failed. Listing unlocked.");
+      return;
     } else {
       Alert.alert("Success", "Your order is confirmed!");
     }
