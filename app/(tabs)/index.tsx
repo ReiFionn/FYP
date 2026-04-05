@@ -36,6 +36,7 @@ export default function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   let aiPriceColour: string;
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -82,9 +83,24 @@ export default function Index() {
       aiPriceColour = "green"
   }
 
-  const displayedListings = allData.filter(listing => 
-    listing.events.title?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const isToday = (dateString: string) => {
+    const eventDate = new Date(dateString);
+    const today = new Date();
+    return eventDate.getDate() === today.getDate() && eventDate.getMonth() === today.getMonth() && eventDate.getFullYear() === today.getFullYear();
+  };
+
+  const displayedListings = allData.filter(listing => {
+    const matchesSearch = listing.events.title?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    let matchesCategory = true;
+    if (activeCategory === "Today") {
+      matchesCategory = isToday(listing.events.start_time);
+    } else if (activeCategory) {
+      matchesCategory = listing.events.category === activeCategory;
+    }
+
+    return matchesSearch && matchesCategory;
+  });
 
   const renderListing: ListRenderItem<ListingWithEvent> = ({ item }) => {
     if (!item.events) return null;
@@ -178,19 +194,25 @@ export default function Index() {
               keyExtractor={(c) => c}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingVertical: 8, gap: 8 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={{
-                    height: 40,
-                    paddingHorizontal: 20,
-                    borderRadius: 20,
-                    justifyContent: 'center',
-                    backgroundColor: Colors[colorScheme].icon,
-                  }}
-                >
-                  <Text style={{ color: Colors[colorScheme].text, fontWeight: "600" }}>{item}</Text>
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const isActive = activeCategory === item;
+                return (
+                  <TouchableOpacity
+                    onPress={() => setActiveCategory(isActive ? null : item)}
+                    style={{
+                      height: 40,
+                      paddingHorizontal: 20,
+                      borderRadius: 20,
+                      justifyContent: 'center',
+                      backgroundColor: isActive ? Colors[colorScheme].text : Colors[colorScheme].icon,
+                    }}
+                  >
+                    <Text style={{ color: isActive ? Colors[colorScheme].background : Colors[colorScheme].text, fontWeight: "600" }}>
+                      {item}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
             />
           </View>
         }
