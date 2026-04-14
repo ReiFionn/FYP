@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { listingId, buyerId } = body;
+    const { listingId, buyerId, offerId } = body;
 
     if (!listingId || !buyerId) {
       return new Response(JSON.stringify({ error: "Missing listingId or buyerId" }), { 
@@ -46,6 +46,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    let amountInCents = Math.round(listing.listing_price * 100);
+
+    if (offerId) {
+      const { data: offerData, error: offerError } = await supabaseAdmin
+        .from('conversation_messages')
+        .select('offer_amount, offer_status')
+        .eq('id', offerId)
+        .single();
+
+      if (!offerError && offerData?.offer_status === 'accepted' && offerData.offer_amount) {
+        amountInCents = Math.round(offerData.offer_amount * 100);
+      }
+    }
+
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('stripe_customer_id')
@@ -60,7 +74,6 @@ Deno.serve(async (req) => {
     }
 
     let stripeCustomerId = profile?.stripe_customer_id;
-    const amountInCents = Math.round(listing.listing_price * 100);
 
     if (!stripeCustomerId) {
       const newCustomer = await stripe.customers.create({});
@@ -98,7 +111,7 @@ Deno.serve(async (req) => {
       automatic_payment_methods: {
         enabled: true,
       },
-      metadata: { listingId: listingId, buyerId: buyerId },
+      metadata: { listingId: listingId, buyerId: buyerId, offerId: offerId || 'none' },
     });
 
     return new Response(

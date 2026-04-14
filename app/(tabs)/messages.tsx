@@ -26,18 +26,18 @@ export default function Users() {
       if (!user) return router.replace("/(auth)/login");
 
       const { data: convos, error: convoError } = await supabase
-      .from("conversations")
-      .select(`
-        id,
-        user1_id, 
-        user2_id, 
-        last_message_at,
-        conversation_messages ( body )
-      `)
-      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
-      .order("last_message_at", { ascending: false })
-      .order("created_at", { foreignTable: "conversation_messages", ascending: false })
-      .limit(1, { foreignTable: "conversation_messages" });
+    .from("conversations")
+    .select(`
+      id,
+      user1_id, 
+      user2_id, 
+      last_message_at,
+      conversation_messages ( body, message_type, offer_amount )
+    `)
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .order("last_message_at", { ascending: false })
+    .order("created_at", { foreignTable: "conversation_messages", ascending: false })
+    .limit(1, { foreignTable: "conversation_messages" });
 
       if (convoError) return alert(convoError.message);
       if (!convos || convos.length === 0) {
@@ -61,9 +61,25 @@ export default function Users() {
         const otherId = convo.user1_id === user.id ? convo.user2_id : convo.user1_id;
         const profile = profilesData?.find(p => p.id === otherId);
         
-        const lastMessageText = convo.conversation_messages && convo.conversation_messages.length > 0 
-      ? convo.conversation_messages[0].body 
-      : "No messages yet";
+        let lastMessageText = "No messages yet";
+        const lastMsg = convo.conversation_messages && convo.conversation_messages.length > 0 
+          ? convo.conversation_messages[0] 
+          : null;
+
+        if (lastMsg) {
+          if (lastMsg.message_type === 'offer') {
+            let title = 'an item';
+            try {
+              const parsed = JSON.parse(lastMsg.body);
+              if (parsed.listingTitle) title = parsed.listingTitle;
+            } catch (e) {
+              
+            }
+            lastMessageText = `Offer sent for ${title} (€${lastMsg.offer_amount})`;
+          } else {
+            lastMessageText = lastMsg.body;
+          }
+        }
         
         return {
           id: otherId,

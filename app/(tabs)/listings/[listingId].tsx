@@ -6,6 +6,7 @@ import { useStripe } from "@stripe/stripe-react-native";
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from "react";
 import { Alert, Image, ScrollView, Text, View } from 'react-native';
+import { useCheckout } from '@/hooks/useCheckout';
 
 type Event = {
   id: string;
@@ -34,10 +35,10 @@ export default function ListingDetails() {
   const [listing, setListing] = useState<ListingWithEvent | null>(null);
   const [loading, setLoading] = useState(true);
   let aiPriceColour = "green"
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
   const [loadingPayment, setLoadingPayment] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [buyerId, setBuyerId] = useState<string | null>(null);
+  const { processCheckout } = useCheckout();
 
   useEffect(() => {
     fetchListing();
@@ -62,92 +63,12 @@ export default function ListingDetails() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute:'2-digit' });
   };
 
-    ///////////////////////////// PAYMENT LOGIC
-
-  const fetchPaymentSheetParams = async () => {
-    if (!listing) return { paymentIntent: null, ephemeralKey: null, customer: null };
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { paymentIntent: null, ephemeralKey: null, customer: null };
-
-    setBuyerId(user.id); 
-
-    const { data, error } = await supabase.functions.invoke('stripe-server', {
-      body: { listingId: listing.id, buyerId: user.id } 
-    });
-
-    if (error) {
-      const errorDetails = await error.response?.json();
-      console.error("Function Error Detail:", errorDetails || error.message);
-      return { paymentIntent: null, ephemeralKey: null, customer: null };
-    }
-
-    return { 
-      paymentIntent: data.paymentIntent, 
-      ephemeralKey: data.ephemeralKey, 
-      customer: data.customer 
-    };
+  const handleBuy = async () => {
+    if (!buyerId || !listing) return;
+    setLoadingPayment(true);
+    await processCheckout(listing.id, buyerId);
+    setLoadingPayment(false);
   };
-
-  const initializePaymentSheet = async () => {
-    console.log("1. Starting Payment Sheet Init...");
-    const { paymentIntent, ephemeralKey, customer } = await fetchPaymentSheetParams();
-    
-    console.log("2. Params received:", { paymentIntent: !!paymentIntent, customer: !!customer });
-    
-    if (!paymentIntent) {
-      console.log("3. Aborting: No paymentIntent found.");
-      return;
-    }
-
-    console.log("4. Calling initPaymentSheet...");
-    const { error } = await initPaymentSheet({
-      merchantDisplayName: "Agorex",
-      customerId: customer,
-      customerEphemeralKeySecret: ephemeralKey,
-      paymentIntentClientSecret: paymentIntent,
-      allowsDelayedPaymentMethods: true,
-      returnURL: "expostripe://stripe-redirect",
-    });
-
-    if (error) {
-      console.log("5. Stripe Init Error:", error);
-    } else {
-      console.log("6. Success! Enabling button.");
-      setLoadingPayment(true);
-    }
-  };
-
-  const openPaymentSheet = async () => {
-    const { error: lockError } = await supabase.rpc('lock_listing', {
-      p_listing_id: listingId,
-      p_buyer_id: buyerId
-    });
-
-    if (lockError) {
-      console.error("Database lock failed:", lockError.message);
-      return;
-    }
-    
-    const { error } = await presentPaymentSheet();
-
-    if (error) {
-      await supabase.rpc('unlock_listing', {
-        p_listing_id: listingId
-      });
-        
-      console.log("Payment sheet dismissed or failed. Listing unlocked.");
-      return;
-    } else {
-      Alert.alert("Success", "Your order is confirmed!");
-    }
-  };
-
-  useEffect(() => {
-    if (listing) {
-      initializePaymentSheet();
-    }
-  }, [listing]);
 
   if (!listing || !listing.events) {
     return (
@@ -208,8 +129,11 @@ export default function ListingDetails() {
         <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Button disabled={!loadingPayment} onPress={openPaymentSheet}>Buy</Button>
-          <Button onPress={() => router.push(`/chat/${listing.seller_id}`)}>Make Offer</Button>
+          <Button disabled={!loadingPayment} onPress={useCheckout}>Buy</Button>
+          <Button onPress={() => router.push({ 
+            pathname: `/chat/[otherUserId]`, 
+            params: { otherUserId: listing.seller_id, listingId: listing.id } 
+          })}>Make Offer</Button>
         </View>
 
         <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />

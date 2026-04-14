@@ -41,12 +41,14 @@ export default function Profile() {
       const [profile, listings, purchases] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
         supabase.from('listings').select('*, events(title, start_time, venue_name, city)').eq('seller_id', user.id).neq('status', 'sold'),
-        supabase.from('listings').select('*, events(title, start_time, venue_name, city)').eq('active_buyer_id', 'user.id')
+        supabase.from('listings').select('*, events(title, start_time, venue_name, city)').eq('active_buyer_id', user.id)
       ]);
 
       if (profile.data) setProfile(profile.data);
       if (listings.data) setListings(listings.data);
       if (purchases.data) setPurchases(purchases.data);
+      console.log(purchases)
+      console.log(user.id)
     } catch (error) {
       console.error("Error fetching profile data:", error);
     } finally {
