@@ -33,20 +33,57 @@ Deno.serve(async (req) => {
 
     if (event.type === 'payment_intent.succeeded') {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        const purchasedListingId = paymentIntent.metadata.listingId;
         
-        if (purchasedListingId) {
-          const { error } = await supabaseAdmin
-              .from('listings')
-              .update({ status: 'sold' })
-              .eq('id', purchasedListingId);
+        const purchasedListingId = paymentIntent.metadata.listingId;
+        const buyerId = paymentIntent.metadata.buyerId;
+        const offerId = paymentIntent.metadata.offerId;
+        
+        if (purchasedListingId && buyerId) {
+          const { error: rpcError } = await supabaseAdmin.rpc('mark_listing_sold', {
+              p_listing_id: purchasedListingId,
+              p_buyer_id: buyerId
+          });
 
-          if (error) {
-              console.error("DB Error:", error);
-              return new Response("Database Error", { status: 500 });
+          if (rpcError) console.error("DB RPC Error:", rpcError);
+
+          if (offerId && offerId !== 'none') {
+              await supabaseAdmin
+                  .from('conversation_messages')
+                  .update({ offer_status: 'paid' })
+                  .eq('id', offerId);
           }
 
-          console.log(`Listing ${purchasedListingId} sold.`);
+          const { data: listing } = await supabaseAdmin
+            .from('listings')
+            .select('seller_id')
+            .eq('id', purchasedListingId)
+            .single();
+
+          if (listing?.seller_id) {
+            const { data: sellerProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('push_token')
+                .eq('id', listing.seller_id)
+                .single();
+
+            if (sellerProfile?.push_token) {
+              await fetch('https://exp.host/--/api/v2/push/send', {
+                  method: 'POST',
+                  headers: {
+                      'Accept': 'application/json',
+                      'Accept-encoding': 'gzip, deflate',
+                      'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                      to: sellerProfile.push_token,
+                      sound: 'default',
+                      title: 'Ticket Sold!',
+                      body: 'Someone just paid for your ticket. Please transfer it to the buyer now.',
+                      data: { listingId: purchasedListingId }, // Allows the app to route them when tapped
+                  }),
+              });
+            }
+          }
         }
     }
 
@@ -55,7 +92,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" } 
     });
 
-  } catch (err) {
+  } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
     return new Response(`Webhook Error: ${err.message}`, { status: 400 });
   }

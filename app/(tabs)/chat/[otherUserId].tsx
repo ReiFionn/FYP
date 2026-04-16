@@ -161,7 +161,8 @@ export default function Chat() {
       .eq('id', listingId);
 
     if (listingError) {
-      Alert.alert("Error", "Could not put the listing on hold.");
+      console.error("Hold Error:", listingError);
+      Alert.alert("Database Error", `Reason: ${listingError.message}`);
       return;
     }
 
@@ -182,18 +183,7 @@ export default function Chat() {
       return Alert.alert("Unavailable", "This ticket has already been sold.");
     }
     
-    const success = await processCheckout(itemListingId, myId, messageId);
-    
-    if (success) {
-      const { error: listingError } = await supabase
-        .from('listings')
-        .update({ status: 'sold' }) 
-        .eq('id', itemListingId);
-
-      if (listingError) console.error("Payment succeeded, but failed to update listing status:", listingError.message);
-
-      await updateOfferStatus(messageId, 'paid'); 
-    }
+    await processCheckout(itemListingId, myId, messageId);
   }
 
   const formatTime = (dateString: string) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -235,7 +225,7 @@ export default function Chat() {
                       <Pressable style={{ flex: 1, backgroundColor: '#ef4444', padding: 10, borderRadius: 8, alignItems: 'center' }} onPress={() => updateOfferStatus(item.id, 'declined')}>
                         <Text style={{ color: 'white', fontWeight: '700' }}>Decline</Text>
                       </Pressable>
-                      <Pressable style={{ flex: 1, backgroundColor: '#22c55e', padding: 10, borderRadius: 8, alignItems: 'center' }} onPress={() => acceptOffer(item.id)}>
+                      <Pressable style={{ flex: 1, backgroundColor: '#22c55e', padding: 10, borderRadius: 8, alignItems: 'center' }} onPress={() => acceptOffer(item.id, context.listingId)}>
                         <Text style={{ color: 'white', fontWeight: '700' }}>Accept</Text>
                       </Pressable>
                     </View>
