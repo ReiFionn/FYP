@@ -1,12 +1,11 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useCheckout } from '@/hooks/useCheckout';
 import { supabase } from "@/lib/supabase";
 import { Button } from '@react-navigation/elements';
-import { useStripe } from "@stripe/stripe-react-native";
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from "react";
 import { Alert, Image, ScrollView, Text, View } from 'react-native';
-import { useCheckout } from '@/hooks/useCheckout';
 
 type Event = {
   id: string;
@@ -22,13 +21,15 @@ type Event = {
 type ListingWithEvent = {
   id: string;
   seller_id: string;
+  active_buyer_id: string;
   status: string;
+  ticket_received: boolean;
+  ticket_sent: boolean;
   listing_price: number;
   ai_suggested_price: number;
   events: Event; 
   artist_image_url: string;
 };
-
 export default function ListingDetails() {
   const { listingId } = useLocalSearchParams(); 
   const colorScheme = useColorScheme() ?? 'light';
@@ -37,12 +38,20 @@ export default function ListingDetails() {
   let aiPriceColour = "green"
   const [loadingPayment, setLoadingPayment] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [buyerId, setBuyerId] = useState<string | null>(null);
+  const [buyerId, setBuyerId] = useState<string | null>(null);  
   const { processCheckout } = useCheckout();
 
   useEffect(() => {
     fetchListing();
   }, [listingId]);
+
+  useEffect(() => {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setBuyerId(user.id);
+    };
+    getUserId();
+  }, []);
 
   const fetchListing = async () => {
     try {
@@ -66,8 +75,76 @@ export default function ListingDetails() {
   const handleBuy = async () => {
     if (!buyerId || !listing) return;
     setLoadingPayment(true);
-    await processCheckout(listing.id, buyerId);
+    
+    const success = await processCheckout(listing.id, buyerId);
+    
     setLoadingPayment(false);
+
+    if (success) {
+      Alert.alert(
+        "Payment Successful!", 
+        "Your money is safe in escrow. We just notified the seller to transfer the ticket to you. On you receive it, confirm receipt here once it arrives.",
+         [{ text: "Got it", onPress: () => fetchListing() }] 
+      );
+    }
+  };
+
+  const handleConfirmReceipt = async () => {
+    Alert.alert(
+      "Confirm Receipt",
+      "Are you sure you have received the ticket? This will immediately release the funds to the seller.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Confirm", 
+          style: "default",
+          onPress: async () => {
+            setListing(prev => prev ? { ...prev, ticket_received: true } : null);
+
+            const { data, error } = await supabase.functions.invoke('release-escrow', {
+              body: { listingId: listing?.id }
+            });
+
+            if (error || data?.error) {
+              setListing(prev => prev ? { ...prev, ticket_received: false } : null);
+              Alert.alert("Payout Error", data?.error || error.message);
+            } else {
+              Alert.alert("Success", "Funds have been released to the seller!");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleConfirmSent = async () => {
+    Alert.alert(
+      "Confirm Transfer",
+      "Are you sure you have transferred the ticket to the buyer?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Yes, I sent it", 
+          style: "default",
+          onPress: async () => {
+            setListing(prev => prev ? { ...prev, ticket_sent: true } : null);
+
+            const { error } = await supabase
+              .from('listings')
+              .update({ 
+                ticket_sent: true, 
+                ticket_sent_at: new Date().toISOString() 
+              })
+              .eq('id', listing?.id);
+
+            if (error) {
+              setListing(prev => prev ? { ...prev, ticket_sent: false } : null);
+              Alert.alert("Error", "Could not confirm transfer. Please try again.");
+            }
+          }
+        }
+      ]
+    );
   };
 
   if (!listing || !listing.events) {
@@ -129,11 +206,53 @@ export default function ListingDetails() {
         <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Button disabled={!loadingPayment} onPress={useCheckout}>Buy</Button>
-          <Button onPress={() => router.push({ 
-            pathname: `/chat/[otherUserId]`, 
-            params: { otherUserId: listing.seller_id, listingId: listing.id } 
-          })}>Make Offer</Button>
+          {listing.status === 'sold' ? (
+            buyerId === listing.active_buyer_id ? (
+              listing.ticket_received ? (
+                <View style={{ padding: 15, backgroundColor: '#dcfce7', borderRadius: 8, width: '100%', alignItems: 'center' }}>
+                  <Text style={{ color: '#166534', fontSize: 18, fontWeight: '700' }}>Ticket Received</Text>
+                  <Text style={{ color: '#166534', marginTop: 4 }}>Funds have been released to the seller.</Text>
+                </View>
+              ) : (
+                <View style={{ padding: 15, backgroundColor: '#e0f2fe', borderRadius: 8, width: '100%' }}>
+                  <Text style={{ color: '#0369a1', fontSize: 18, fontWeight: '700' }}>Next Step: Await Transfer</Text>
+                  <Text style={{ color: '#0369a1', marginTop: 8, marginBottom: 15, lineHeight: 22 }}>
+                    The seller has been notified to transfer the ticket to you. Once you receive it, click below to confirm and release their payout.
+                  </Text>
+                  <Button onPress={handleConfirmReceipt} style={{ backgroundColor: '#22c55e', width: '100%' }}>
+                    Confirm Ticket Received
+                  </Button>
+                </View>
+              )
+            ) : buyerId === listing.seller_id ? (
+              listing.ticket_sent ? (
+                <View style={{ padding: 15, backgroundColor: '#fef08a', borderRadius: 8, width: '100%', alignItems: 'center' }}>
+                  <Text style={{ color: '#854d0e', fontSize: 18, fontWeight: '700' }}>Ticket Transferred</Text>
+                  <Text style={{ color: '#854d0e', marginTop: 4, textAlign: 'center' }}>Awaiting buyer confirmation to release your payout.</Text>
+                </View>
+              ) : (
+                <View style={{ padding: 15, backgroundColor: '#fef08a', borderRadius: 8, width: '100%' }}>
+                  <Text style={{ color: '#854d0e', fontSize: 18, fontWeight: '700' }}>Next Step: Transfer Ticket</Text>
+                  <Text style={{ color: '#854d0e', marginTop: 8, marginBottom: 15, lineHeight: 22 }}>
+                    Please transfer the ticket to the buyer. Once transferred, confirm below.
+                  </Text>
+                  <Button onPress={handleConfirmSent} style={{ backgroundColor: '#ca8a04', width: '100%' }}>
+                    I Have Transferred the Ticket
+                  </Button>
+                </View>
+              )
+            ) : (
+              <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Sold</Text>
+            )
+          ) : (
+            <>
+              <Button disabled={loadingPayment} onPress={handleBuy}>Buy</Button>
+              <Button onPress={() => router.push({ 
+                pathname: `/chat/[otherUserId]`, 
+                params: { otherUserId: listing.seller_id, listingId: listing.id } 
+              })}>Make Offer</Button>
+            </>
+          )}
         </View>
 
         <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />
