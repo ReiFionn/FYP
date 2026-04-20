@@ -1,10 +1,11 @@
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from "@/lib/supabase";
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from "react";
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 type Profile = {
   id: string;
@@ -28,10 +29,18 @@ export default function Profile() {
   const [listings, setListings] = useState<Item[]>([]);
   const [purchases, setPurchases] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchUserData();
   }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchUserData();
+    setRefreshing(false);
+  };
+
 
   const fetchUserData = async () => {
     try {
@@ -218,7 +227,23 @@ export default function Profile() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: theme.background }}>
+    <ScrollView 
+    style={{ flex: 1, backgroundColor: theme.background }}
+    refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }>
+      <TouchableOpacity 
+        onPress={() => router.push('/userSettings')}
+        style={{ 
+          position: 'absolute', 
+          top: 20, 
+          right: 20, 
+          zIndex: 10,
+          padding: 8 
+        }}
+      >
+        <IconSymbol name="gearshape.fill" size={28} color={theme.text} />
+      </TouchableOpacity>      
       <View style={{ alignItems: 'center', paddingVertical: 30, borderBottomWidth: 1, borderBottomColor: theme.icon }}>
         <TouchableOpacity onPress={handlePicturePress} activeOpacity={0.8}>
           <Image

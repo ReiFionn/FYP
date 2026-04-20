@@ -2,7 +2,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { supabase } from "../../lib/supabase";
 
 type ChatListItem = {
@@ -17,9 +17,10 @@ type ChatListItem = {
 export default function Users() {
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
-
   const [profiles, setProfiles] = useState<ChatListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -99,6 +100,12 @@ export default function Users() {
     load();
   }, []);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  };
+
   const formatTime = (dateString: string | null) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -110,7 +117,8 @@ export default function Users() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.background }}>
+    <View 
+    style={{ flex: 1, backgroundColor: theme.background }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
         <Text style={{ fontSize: 28, fontWeight: "800", color: theme.text }}>
           Messages
@@ -123,6 +131,9 @@ export default function Users() {
         contentContainerStyle={{ paddingHorizontal: 16 }}
         refreshing={loading}
         onRefresh={load}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         renderItem={({ item }) => (
           <Pressable
             onPress={() => router.push(`/chat/${item.id}`)}
