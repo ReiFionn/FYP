@@ -210,24 +210,31 @@ export default function ListingDetails() {
             buyerId === listing.active_buyer_id ? (
               listing.ticket_received ? (
                 <View style={{ padding: 15, backgroundColor: '#dcfce7', borderRadius: 8, width: '100%', alignItems: 'center' }}>
-                  <Text style={{ color: '#166534', fontSize: 18, fontWeight: '700' }}>Ticket Received</Text>
+                  <Text style={{ color: '#166534', fontSize: 18, fontWeight: '700' }}>Ticket Received!</Text>
                   <Text style={{ color: '#166534', marginTop: 4 }}>Funds have been released to the seller.</Text>
                 </View>
-              ) : (
+              ) : listing.ticket_sent ? (
                 <View style={{ padding: 15, backgroundColor: '#e0f2fe', borderRadius: 8, width: '100%' }}>
-                  <Text style={{ color: '#0369a1', fontSize: 18, fontWeight: '700' }}>Next Step: Await Transfer</Text>
+                  <Text style={{ color: '#0369a1', fontSize: 18, fontWeight: '700' }}>Action Required</Text>
                   <Text style={{ color: '#0369a1', marginTop: 8, marginBottom: 15, lineHeight: 22 }}>
-                    The seller has been notified to transfer the ticket to you. Once you receive it, click below to confirm and release their payout.
+                    The seller has confirmed transferring the ticket to you. Please click below to release their payout.
                   </Text>
                   <Button onPress={handleConfirmReceipt} style={{ backgroundColor: '#22c55e', width: '100%' }}>
                     Confirm Ticket Received
                   </Button>
                 </View>
+              ) : (
+                <View style={{ padding: 15, backgroundColor: '#f3f4f6', borderRadius: 8, width: '100%' }}>
+                  <Text style={{ color: '#374151', fontSize: 18, fontWeight: '700' }}>Awaiting Transfer</Text>
+                  <Text style={{ color: '#4b5563', marginTop: 8, lineHeight: 22 }}>
+                    Your payment is secure in escrow. We are waiting for the seller to transfer the ticket. This page will update once they send it.
+                  </Text>
+                </View>
               )
             ) : buyerId === listing.seller_id ? (
               listing.ticket_sent ? (
                 <View style={{ padding: 15, backgroundColor: '#fef08a', borderRadius: 8, width: '100%', alignItems: 'center' }}>
-                  <Text style={{ color: '#854d0e', fontSize: 18, fontWeight: '700' }}>Ticket Transferred</Text>
+                  <Text style={{ color: '#854d0e', fontSize: 18, fontWeight: '700' }}>Ticket Transferred!</Text>
                   <Text style={{ color: '#854d0e', marginTop: 4, textAlign: 'center' }}>Awaiting buyer confirmation to release your payout.</Text>
                 </View>
               ) : (
