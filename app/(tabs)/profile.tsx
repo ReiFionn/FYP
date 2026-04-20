@@ -234,6 +234,22 @@ export default function Profile() {
         </Text>
       </View>
 
+      <TouchableOpacity 
+        onPress={() => router.push('./userListings')}
+        style={{
+          padding: 15,
+          backgroundColor: Colors[colorScheme].icon,
+          borderRadius: 8,
+          marginTop: 20,
+          marginHorizontal: 20,
+          alignItems: 'center'
+        }}
+      >
+        <Text style={{ fontSize: 16, fontWeight: '600', color: Colors[colorScheme].text }}>
+          Manage My Listings
+        </Text>
+      </TouchableOpacity>
+
       <View style={{padding: 20}}>
         <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 16 , color: theme.text }}>Current Listings</Text>
         {listings.length > 0 ? (

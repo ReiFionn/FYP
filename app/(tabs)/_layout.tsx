@@ -81,6 +81,12 @@ export default function TabLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="userListings"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
     </StripeProvider>
   );
