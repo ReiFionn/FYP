@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "fyp",
-    "slug": "fyp",
+    "name": "Agorex",
+    "slug": "agorex",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "fyp",
+    "scheme": "agorex",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "backgroundColor": "#5C4670",
@@ -48,7 +48,8 @@
           "merchantIdentifier": "merchant.com.yourname.fairplay",
           "enableGooglePay": false
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -61,4 +62,3 @@
     }
   }
 }
-

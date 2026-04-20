@@ -1,7 +1,8 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
-import { router } from 'expo-router';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
@@ -51,7 +52,26 @@ export default function Settings() {
     };
 
     const handleConnectBank = async () => {
-        console.log("Trigger Stripe Onboarding");
+        try {
+            const returnUrl = Linking.createURL('/'); 
+
+            const { data, error } = await supabase.functions.invoke('stripe-connect', {
+            body: { returnUrl }
+            });
+
+            if (error || !data?.url) throw error;
+
+            const result = await WebBrowser.openAuthSessionAsync(data.url, returnUrl);
+
+            if (result.type === 'success') {
+            console.log("Stripe onboarding complete!");
+            } else {
+            console.log("User cancelled the onboarding");
+            }
+
+        } catch (error) {
+            console.error("Stripe Onboarding Error:", error);
+        }
     };
 
     if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
