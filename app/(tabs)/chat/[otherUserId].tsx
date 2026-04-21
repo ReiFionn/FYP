@@ -3,7 +3,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useCheckout } from '@/hooks/useCheckout';
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Button, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
 type Msg = { 
@@ -204,6 +204,33 @@ export default function Chat() {
         onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
         renderItem={({ item }) => {
           const isMe = item.sender_id === myId;
+
+          if (item.message_type === 'system') {
+            return (
+              <View 
+                key={item.id} 
+                style={{ 
+                  alignSelf: 'center', 
+                  width: '85%', 
+                  backgroundColor: '#f3f4f6',
+                  borderColor: '#d1d5db',
+                  borderWidth: 1,
+                  borderRadius: 12, 
+                  padding: 15, 
+                  marginVertical: 15, 
+                  alignItems: 'center' 
+                }}
+              >
+                <Text style={{ color: '#4b5563', fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>
+                  {item.body}
+                </Text>
+                <Pressable 
+                  onPress={() => router.push(`/listings/${listingId}`)} 
+                  style={{ backgroundColor: '#9333ea', width: '100%' }}
+                >Rate Transaction</Pressable>
+              </View>
+            );
+          }
           
           if (item.message_type === 'offer') {
             const context = getListingContext(item.body);

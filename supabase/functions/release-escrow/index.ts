@@ -80,4 +80,46 @@ Deno.serve(async (req) => {
       status: 400,
     });
   }
+
+  const { data: conversation } = await supabaseAdmin
+  .from('conversations')
+  .select('id')
+  .or(`and(user1_id.eq.${listing.seller_id},user2_id.eq.${listing.active_buyer_id}),and(user1_id.eq.${listing.active_buyer_id},user2_id.eq.${listing.seller_id})`)
+  .single();
+
+  if (conversation) {
+    await supabaseAdmin
+    .from('conversation_messages')
+    .insert({
+      conversation_id: conversation.id,
+      sender_id: listing.active_buyer_id, 
+      message_type: 'system', 
+      body: JSON.stringify({
+        text: 'The transaction is complete and funds are released! Please rate your experience.',
+        listingId: listing.id
+      }),
+    });
+  }
+
+  const { data: sellerProfile } = await supabaseAdmin
+  .from('profiles')
+  .select('expo_push_token')
+  .eq('id', listing.seller_id)
+  .single();
+
+  if (sellerProfile?.expo_push_token) {
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: sellerProfile.expo_push_token,
+        title: 'Ticket Secured!',
+        body: 'Your buyer confirmed and your funds are released. Tap here to rate them.',
+        data: { url: `/listings/${listing.id}` },
+      }),
+    });
+  }
 });

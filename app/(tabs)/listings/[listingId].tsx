@@ -6,6 +6,7 @@ import { Button } from '@react-navigation/elements';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from "react";
 import { Alert, Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Rating } from 'react-native-ratings';
 
 type Event = {
   id: string;
@@ -45,6 +46,11 @@ export default function ListingDetails() {
   const [issueType, setIssueType] = useState('Ticket Not Received');
   const [userMessage, setUserMessage] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [sellerNeedsToRate, setSellerNeedsToRate] = useState(false);
 
   useEffect(() => {
     fetchListing();
@@ -57,6 +63,28 @@ export default function ListingDetails() {
     };
     getUserId();
   }, []);
+
+  useEffect(() => {
+    const checkReviewStatus = async () => {
+      if (!listing || !buyerId || listing.status !== 'sold' || !listing.ticket_received) return;
+      
+      if (buyerId === listing.seller_id) {
+        const { data } = await supabase
+          .from('reviews')
+          .select('id')
+          .eq('listing_id', listing.id)
+          .eq('reviewer_id', buyerId)
+          .single();
+        
+        if (!data) {
+          setSellerNeedsToRate(true);
+        } else {
+          setSellerNeedsToRate(false);
+        }
+      }
+    };
+    checkReviewStatus();
+  }, [listing, buyerId]);
 
   const fetchListing = async () => {
     try {
@@ -89,7 +117,7 @@ export default function ListingDetails() {
       Alert.alert(
         "Payment Successful!", 
         "Your money is safe in escrow. We just notified the seller to transfer the ticket to you. Once you receive it, confirm receipt here once it arrives.",
-         [{ text: "Got it", onPress: () => fetchListing() }] 
+          [{ text: "Got it", onPress: () => fetchListing() }] 
       );
     }
   };
@@ -114,7 +142,7 @@ export default function ListingDetails() {
               setListing(prev => prev ? { ...prev, ticket_received: false } : null);
               Alert.alert("Payout Error", data?.error || error.message);
             } else {
-              Alert.alert("Success", "Funds have been released to the seller!");
+              setReviewModalVisible(true);
             }
           }
         }
@@ -181,6 +209,38 @@ export default function ListingDetails() {
       Alert.alert("Error", error.message);
     } finally {
       setSubmittingReport(false);
+    }
+  };
+
+  const submitReview = async () => {
+    if (!listing || !buyerId) return;
+    
+    setSubmittingReview(true);
+    try {
+      const isBuyer = buyerId === listing.active_buyer_id;
+      const revieweeId = isBuyer ? listing.seller_id : listing.active_buyer_id;
+
+      const { error } = await supabase.rpc('submit_and_update_rating', {
+        p_listing_id: listing.id,
+        p_reviewee_id: revieweeId,
+        p_rating: ratingValue,
+        p_comment: reviewComment.trim() || null
+      });
+
+      if (error) throw error;
+
+      if (isBuyer) {
+        setReviewModalVisible(false);
+        Alert.alert("Thanks!", "Your review has been submitted.");
+      } else {
+        setSellerNeedsToRate(false);
+        Alert.alert("Thanks!", "Your review has been submitted.");
+      }
+      
+    } catch (error: any) {
+      Alert.alert("Error", error.message);
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -276,10 +336,42 @@ export default function ListingDetails() {
             ) : buyerId === listing.seller_id ? (
               <View style={{ width: '100%' }}>
                 {listing.ticket_sent ? (
-                  <View style={{ padding: 15, backgroundColor: '#fef08a', borderRadius: 8, width: '100%', alignItems: 'center' }}>
-                    <Text style={{ color: '#854d0e', fontSize: 18, fontWeight: '700' }}>Ticket Transferred!</Text>
-                    <Text style={{ color: '#854d0e', marginTop: 4, textAlign: 'center' }}>Awaiting buyer confirmation to release your payout.</Text>
-                  </View>
+                  listing.ticket_received && sellerNeedsToRate ? (
+                    <View style={{ padding: 15, backgroundColor: '#f3e8ff', borderRadius: 8, width: '100%', alignItems: 'center' }}>
+                      <Text style={{ color: '#6b21a8', fontSize: 18, fontWeight: '700' }}>Transaction Complete!</Text>
+                      <Text style={{ color: '#6b21a8', marginTop: 4, textAlign: 'center', marginBottom: 15 }}>
+                        The buyer received the ticket. Please rate them below.
+                      </Text>
+                      <Rating
+                        type="star"
+                        fractions={2}
+                        startingValue={0}
+                        imageSize={40}
+                        tintColor={Colors[colorScheme].background}
+                        onFinishRating={(rating: number) => setRatingValue(rating)}
+                        style={{ paddingVertical: 10 }}
+                      />
+                      <TextInput
+                        style={{
+                          backgroundColor: 'rgba(255,255,255,0.7)', color: '#6b21a8', width: '100%',
+                          borderRadius: 8, padding: 10, marginTop: 15, height: 60, textAlignVertical: 'top'
+                        }}
+                        placeholder="Optional comment..."
+                        placeholderTextColor="#a855f7"
+                        multiline
+                        value={reviewComment}
+                        onChangeText={setReviewComment}
+                      />
+                      <Button disabled={submittingReview} onPress={submitReview} style={{ backgroundColor: '#9333ea', width: '100%', marginTop: 15 }}>
+                        {submittingReview ? "Submitting..." : "Submit Review"}
+                      </Button>
+                    </View>
+                  ) : (
+                    <View style={{ padding: 15, backgroundColor: '#fef08a', borderRadius: 8, width: '100%', alignItems: 'center' }}>
+                      <Text style={{ color: '#854d0e', fontSize: 18, fontWeight: '700' }}>Ticket Transferred!</Text>
+                      <Text style={{ color: '#854d0e', marginTop: 4, textAlign: 'center' }}>Awaiting buyer confirmation to release your payout.</Text>
+                    </View>
+                  )
                 ) : (
                   <View style={{ padding: 15, backgroundColor: '#fef08a', borderRadius: 8, width: '100%' }}>
                     <Text style={{ color: '#854d0e', fontSize: 18, fontWeight: '700' }}>Next Step: Transfer Ticket</Text>
@@ -332,6 +424,51 @@ export default function ListingDetails() {
           </View>
         </View>
       </View>
+
+      <Modal visible={reviewModalVisible} animationType="slide" transparent={true}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View style={{ backgroundColor: Colors[colorScheme].background, padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '50%' }}>
+            
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: Colors[colorScheme].text, textAlign: 'center', marginBottom: 10 }}>
+              Ticket Secured!
+            </Text>
+            <Text style={{ fontSize: 16, color: Colors[colorScheme].tabIconDefault, textAlign: 'center', marginBottom: 20 }}>
+              Rate your experience with the seller!
+            </Text>
+
+            <Rating
+              type="star"
+              fractions={2}
+              startingValue={0}
+              imageSize={40}
+              tintColor={Colors[colorScheme].background}
+              onFinishRating={(rating: number) => setRatingValue(rating)}
+              style={{ paddingVertical: 10 }}
+            />
+
+            <TextInput
+              style={{
+                backgroundColor: Colors[colorScheme].icon, color: Colors[colorScheme].text,
+                borderRadius: 10, padding: 15, height: 100, textAlignVertical: 'top', marginVertical: 20
+              }}
+              placeholder="Leave a comment (optional)..."
+              placeholderTextColor={Colors[colorScheme].tabIconDefault}
+              multiline
+              value={reviewComment}
+              onChangeText={setReviewComment}
+            />
+
+            <Button disabled={submittingReview} onPress={submitReview} style={{ backgroundColor: '#22c55e' }}>
+              {submittingReview ? "Submitting..." : "Submit Review"}
+            </Button>
+            
+            <TouchableOpacity onPress={() => setReviewModalVisible(false)} style={{ marginTop: 15, alignSelf: 'center' }}>
+              <Text style={{ color: Colors[colorScheme].tabIconDefault, fontWeight: '600' }}>Skip for now</Text>
+            </TouchableOpacity>
+
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={reportModalVisible} animationType="slide" transparent={true}>
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
