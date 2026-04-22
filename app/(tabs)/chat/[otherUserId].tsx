@@ -3,7 +3,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useCheckout } from '@/hooks/useCheckout';
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Button, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
 type Msg = { 
@@ -212,8 +212,8 @@ export default function Chat() {
                 style={{ 
                   alignSelf: 'center', 
                   width: '85%', 
-                  backgroundColor: '#f3f4f6',
-                  borderColor: '#d1d5db',
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
                   borderWidth: 1,
                   borderRadius: 12, 
                   padding: 15, 
@@ -221,13 +221,15 @@ export default function Chat() {
                   alignItems: 'center' 
                 }}
               >
-                <Text style={{ color: '#4b5563', fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>
+                <Text style={{ color: theme.text, fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>
                   {item.body}
                 </Text>
                 <Pressable 
                   onPress={() => router.push(`/listings/${listingId}`)} 
-                  style={{ backgroundColor: '#9333ea', width: '100%' }}
-                >Rate Transaction</Pressable>
+                  style={{ backgroundColor: theme.primary, width: '100%', paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
+                >
+                  <Text style={{ color: theme.tint, fontWeight: '700' }}>Rate Transaction</Text>
+                </Pressable>
               </View>
             );
           }
@@ -237,42 +239,42 @@ export default function Chat() {
             
             return (
               <View style={{ flexDirection: "row", marginBottom: 12, justifyContent: isMe ? "flex-end" : "flex-start" }}>
-                <View style={[{ maxWidth: "85%", minWidth: 220, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20 }, isMe ? { borderBottomRightRadius: 4, backgroundColor: theme.tint } : { borderBottomLeftRadius: 4, backgroundColor: theme.icon }]}>
+                <View style={[{ maxWidth: "85%", minWidth: 220, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 20 }, isMe ? { borderBottomRightRadius: 4, backgroundColor: theme.tint } : { borderBottomLeftRadius: 4, backgroundColor: theme.card }]}>
                   
-                  <Text style={{ color: isMe ? '#fff' : theme.text, fontSize: 16, fontWeight: '800', marginBottom: 2 }}>
+                  <Text style={{ color: isMe ? theme.text : theme.text, fontSize: 16, fontWeight: '800', marginBottom: 2 }}>
                     {isMe ? 'You offered' : 'Offer received'}: €{item.offer_amount}
                   </Text>
                   
-                  <Text style={{ color: isMe ? 'rgba(255,255,255,0.9)' : theme.text, opacity: isMe ? 1 : 0.7, fontSize: 13, marginBottom: 8, fontWeight: '500' }}>
+                  <Text style={{ color: isMe ? theme.tabIconDefault : theme.tabIconDefault, fontSize: 13, marginBottom: 8, fontWeight: '500' }}>
                     For: {context.listingTitle}
                   </Text>
                   
                   {!isMe && item.offer_status === 'pending' && (
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                      <Pressable style={{ flex: 1, backgroundColor: '#ef4444', padding: 10, borderRadius: 8, alignItems: 'center' }} onPress={() => updateOfferStatus(item.id, 'declined')}>
-                        <Text style={{ color: 'white', fontWeight: '700' }}>Decline</Text>
+                      <Pressable style={{ flex: 1, backgroundColor: theme.error, padding: 10, borderRadius: 8, alignItems: 'center' }} onPress={() => updateOfferStatus(item.id, 'declined')}>
+                        <Text style={{ color: theme.tint, fontWeight: '700' }}>Decline</Text>
                       </Pressable>
-                      <Pressable style={{ flex: 1, backgroundColor: '#22c55e', padding: 10, borderRadius: 8, alignItems: 'center' }} onPress={() => acceptOffer(item.id, context.listingId)}>
-                        <Text style={{ color: 'white', fontWeight: '700' }}>Accept</Text>
+                      <Pressable style={{ flex: 1, backgroundColor: '#A4CBB4', padding: 10, borderRadius: 8, alignItems: 'center' }} onPress={() => acceptOffer(item.id, context.listingId)}>
+                        <Text style={{ color: theme.tint, fontWeight: '700' }}>Accept</Text>
                       </Pressable>
                     </View>
                   )}
 
                   {isMe && item.offer_status === 'pending' && (
                     <Pressable style={{ marginTop: 8, alignSelf: 'flex-start', paddingVertical: 4 }} onPress={() => updateOfferStatus(item.id, 'withdrawn')}>
-                      <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' }}>Withdraw Offer</Text>
+                      <Text style={{ color: theme.tabIconDefault, fontSize: 14, fontWeight: '700', textDecorationLine: 'underline' }}>Withdraw Offer</Text>
                     </Pressable>
                   )}
 
                   {isMe && item.offer_status === 'accepted' && (
-                    <Pressable style={{ marginTop: 12, backgroundColor: theme.background, padding: 12, borderRadius: 8, alignItems: 'center' }} onPress={() => payForOffer(item.id, context.listingId)}>
-                      <Text style={{ color: theme.text, fontWeight: '800', fontSize: 16 }}>Pay Now</Text>
+                    <Pressable style={{ marginTop: 12, backgroundColor: theme.primary, padding: 12, borderRadius: 8, alignItems: 'center' }} onPress={() => payForOffer(item.id, context.listingId)}>
+                      <Text style={{ color: theme.tint, fontWeight: '800', fontSize: 16 }}>Pay Now</Text>
                     </Pressable>
                   )}
 
                   {(item.offer_status !== 'pending' && !(isMe && item.offer_status === 'accepted')) && (
                     <Text style={{ 
-                      color: (item.offer_status === 'accepted' || item.offer_status === 'paid') ? (isMe ? '#bbf7d0' : '#16a34a') : (isMe ? '#fecaca' : '#dc2626'), 
+                      color: (item.offer_status === 'accepted' || item.offer_status === 'paid') ? '#A4CBB4' : theme.error, 
                       marginTop: 8, 
                       fontWeight: '800', 
                       textTransform: 'uppercase', 
@@ -282,7 +284,7 @@ export default function Chat() {
                     </Text>
                   )}
 
-                  <Text style={{ fontSize: 11, marginTop: 8, alignSelf: isMe ? 'flex-end' : 'flex-start', color: isMe ? 'rgba(255,255,255,0.7)' : theme.tabIconDefault }}>
+                  <Text style={{ fontSize: 11, marginTop: 8, alignSelf: isMe ? 'flex-end' : 'flex-start', color: isMe ? theme.tabIconDefault : theme.tabIconDefault }}>
                     {formatTime(item.created_at)}
                   </Text>
                 </View>
@@ -292,9 +294,9 @@ export default function Chat() {
 
           return (
             <View style={{ flexDirection: "row", marginBottom: 12, justifyContent: isMe ? "flex-end" : "flex-start" }}>
-              <View style={[{ maxWidth: "75%", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 }, isMe ? { borderBottomRightRadius: 4, backgroundColor: theme.tint } : { borderBottomLeftRadius: 4, backgroundColor: theme.icon }]}>
-                <Text style={{ color: isMe ? '#fff' : theme.text, fontSize: 16 }}>{item.body}</Text>
-                <Text style={{ fontSize: 11, marginTop: 4, alignSelf: isMe ? 'flex-end' : 'flex-start', color: isMe ? 'rgba(255,255,255,0.7)' : theme.tabIconDefault }}>{formatTime(item.created_at)}</Text>
+              <View style={[{ maxWidth: "75%", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 }, isMe ? { borderBottomRightRadius: 4, backgroundColor: theme.tint } : { borderBottomLeftRadius: 4, backgroundColor: theme.card }]}>
+                <Text style={{ color: theme.text, fontSize: 16 }}>{item.body}</Text>
+                <Text style={{ fontSize: 11, marginTop: 4, alignSelf: isMe ? 'flex-end' : 'flex-start', color: theme.tabIconDefault }}>{formatTime(item.created_at)}</Text>
               </View>
             </View>
           );
@@ -319,8 +321,8 @@ export default function Chat() {
                   renderItem={({ item }) => {
                     const isSelected = selectedListingId === item.id;
                     return (
-                      <Pressable onPress={() => setSelectedListingId(item.id)} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: isSelected ? theme.tint : theme.icon, backgroundColor: isSelected ? theme.tint + '20' : theme.background }}>
-                        <Text style={{ color: isSelected ? theme.tint : theme.text, fontWeight: isSelected ? '700' : '400' }}>{item.events.title} (€{item.listing_price})</Text>
+                      <Pressable onPress={() => setSelectedListingId(item.id)} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: isSelected ? theme.primary : theme.border, backgroundColor: isSelected ? theme.card : theme.background }}>
+                        <Text style={{ color: isSelected ? theme.primary : theme.text, fontWeight: isSelected ? '700' : '400' }}>{item.events.title} (€{item.listing_price})</Text>
                       </Pressable>
                     );
                   }}
@@ -337,20 +339,20 @@ export default function Chat() {
                 <Text style={{ color: theme.tabIconDefault, fontSize: 24 }}>✕</Text>
               </Pressable>
               <Text style={{ fontSize: 20, color: theme.text, paddingHorizontal: 4 }}>€</Text>
-              <TextInput value={offerAmount} onChangeText={setOfferAmount} placeholder="0.00" placeholderTextColor={theme.tabIconDefault} keyboardType="numeric" editable={sellerListings.length > 0} style={{ minWidth: 100, flex: 1, height: 44, borderWidth: 1, borderRadius: 22, paddingHorizontal: 16, fontSize: 16, color: theme.text, borderColor: theme.icon, marginLeft: 4 }} />
-              <Pressable onPress={sendOffer} disabled={!offerAmount || !selectedListingId} style={({ pressed }) => [{ marginLeft: 12, borderRadius: 22, height: 44, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: (offerAmount && selectedListingId) ? theme.tint : theme.icon, opacity: pressed ? 0.8 : 1 }]}>
-                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Send</Text>
+              <TextInput value={offerAmount} onChangeText={setOfferAmount} placeholder="0.00" placeholderTextColor={theme.tabIconDefault} keyboardType="numeric" editable={sellerListings.length > 0} style={{ minWidth: 100, flex: 1, height: 44, borderWidth: 1, borderRadius: 22, paddingHorizontal: 16, fontSize: 16, color: theme.text, borderColor: theme.border, marginLeft: 4 }} />
+              <Pressable onPress={sendOffer} disabled={!offerAmount || !selectedListingId} style={({ pressed }) => [{ marginLeft: 12, borderRadius: 22, height: 44, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: (offerAmount && selectedListingId) ? theme.primary : theme.icon, opacity: pressed ? 0.8 : 1 }]}>
+                <Text style={{ color: (offerAmount && selectedListingId) ? theme.tint : theme.background, fontWeight: '700', fontSize: 16 }}>Send</Text>
               </Pressable>
             </View>
           </View>
         ) : (
           <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
             <Pressable onPress={() => setIsMakingOffer(true)} style={{ padding: 12, marginRight: 4 }}>
-              <Text style={{ color: theme.tint, fontSize: 24, fontWeight: '700' }}>€</Text>
+              <Text style={{ color: theme.text, fontSize: 24, fontWeight: '700' }}>€</Text>
             </Pressable>
-            <TextInput value={draft} onChangeText={setDraft} placeholder="Message..." placeholderTextColor={theme.tabIconDefault} style={{ flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, maxHeight: 100, fontSize: 16, color: theme.text, backgroundColor: theme.background, borderColor: theme.icon }} multiline />
-            <Pressable onPress={send} disabled={!draft.trim()} style={({ pressed }) => [{ marginLeft: 12, borderRadius: 20, paddingVertical: 12, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: draft.trim() ? theme.tint : theme.icon, opacity: pressed ? 0.8 : 1 }]}>
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Send</Text>
+            <TextInput value={draft} onChangeText={setDraft} placeholder="Message..." placeholderTextColor={theme.tabIconDefault} style={{ flex: 1, borderWidth: 1, borderRadius: 20, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, maxHeight: 100, fontSize: 16, color: theme.text, backgroundColor: theme.background, borderColor: theme.border }} multiline />
+            <Pressable onPress={send} disabled={!draft.trim()} style={({ pressed }) => [{ marginLeft: 12, borderRadius: 20, paddingVertical: 12, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: draft.trim() ? theme.primary : theme.icon, opacity: pressed ? 0.8 : 1 }]}>
+              <Text style={{ color: draft.trim() ? theme.tint : theme.background, fontWeight: '700', fontSize: 16 }}>Send</Text>
             </Pressable>
           </View>
         )}

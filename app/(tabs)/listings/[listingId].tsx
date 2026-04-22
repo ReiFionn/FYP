@@ -2,7 +2,6 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCheckout } from '@/hooks/useCheckout';
 import { supabase } from "@/lib/supabase";
-import { Button } from '@react-navigation/elements';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from "react";
 import { Alert, Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -30,14 +29,16 @@ type ListingWithEvent = {
   ai_suggested_price: number;
   events: Event; 
   artist_image_url: string;
+  seller_display_name?: string; 
 };
 
 export default function ListingDetails() {
   const { listingId } = useLocalSearchParams(); 
   const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
   const [listing, setListing] = useState<ListingWithEvent | null>(null);
   const [loading, setLoading] = useState(true);
-  let aiPriceColour = "green"
+  let aiPriceColour = "#A4CBB4";
   const [loadingPayment, setLoadingPayment] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [buyerId, setBuyerId] = useState<string | null>(null);  
@@ -90,8 +91,19 @@ export default function ListingDetails() {
     try {
       const { data, error } = await supabase
         .from('listings').select(`*, events (id, title, age_restriction, start_time, venue_name, city, address_line1, category)`).eq('id', listingId).single();
+      
       if (error) throw error;
-      if (data) setListing(data as unknown as ListingWithEvent);
+      
+      if (data) {
+        const { data: profileData } = await supabase.from('profiles').select('display_name').eq('id', data.seller_id).single();
+        
+        const listingWithDetails = {
+            ...data,
+            seller_display_name: profileData?.display_name || 'Unknown User'
+        };
+
+        setListing(listingWithDetails as unknown as ListingWithEvent);
+      }
     } catch (error) {
       console.error('Error fetching listing:', error);
     } finally {
@@ -246,8 +258,8 @@ export default function ListingDetails() {
 
   if (!listing || !listing.events) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors[colorScheme].background }}>
-        <Text style={{ color: Colors[colorScheme].text }}>Listing not found.</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }}>
+        <Text style={{ color: theme.text }}>Listing not found.</Text>
       </View>
     );
   }
@@ -256,18 +268,18 @@ export default function ListingDetails() {
     const aiPriceFive = aiPrice/100*5
 
     if (userPrice >= aiPrice + (aiPriceFive*2))
-      aiPriceColour = "red"
+      aiPriceColour = theme.error;
     else if (userPrice >= aiPrice + aiPriceFive)
-      aiPriceColour = "orange"
+      aiPriceColour = "#E2C28A";
     else
-      aiPriceColour = "green"
+      aiPriceColour = "#A4CBB4";
   }
 
   console.log("Event Data from Supabase:", listing.events);
   aiPriceColourLogic(listing.listing_price, listing.ai_suggested_price)
   
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: Colors[colorScheme].background }}>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.background }}>
       
       {listing.artist_image_url ? (
         <Image 
@@ -276,14 +288,14 @@ export default function ListingDetails() {
           resizeMode="cover"
         />
       ) : (
-        <View style={{ height: 250, backgroundColor: Colors[colorScheme].icon, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: Colors[colorScheme].tabIconDefault }}>Placeholder</Text>
+        <View style={{ height: 250, backgroundColor: theme.icon, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: theme.tabIconDefault }}>Placeholder</Text>
         </View>
       )}
 
       <View style={{ padding: 20 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Text style={{ fontSize: 24, fontWeight: "800", color: Colors[colorScheme].text, flex: 1, marginRight: 12 }}>
+          <Text style={{ fontSize: 24, fontWeight: "800", color: theme.text, flex: 1, marginRight: 12 }}>
             {listing.events.title}
           </Text>
           <Text style={{ fontSize: 24, fontWeight: "800", color: aiPriceColour }}>
@@ -292,54 +304,54 @@ export default function ListingDetails() {
         </View>
 
         <View style={{ marginTop: 12 }}>
-          <Text style={{ color: Colors[colorScheme].text, fontSize: 16, fontWeight: '500' }}>
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: '500' }}>
             {formatDate(listing.events.start_time)}
           </Text>
-          <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 16, marginTop: 4 }}>
+          <Text style={{ color: theme.tabIconDefault, fontSize: 16, marginTop: 4 }}>
             {listing.events.venue_name}, {listing.events.address_line1}, {listing.events.city}
           </Text>
         </View>
 
-        <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />
+        <View style={{ height: 1, backgroundColor: theme.icon, marginVertical: 20 }} />
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           {listing.status === 'sold' ? (
             buyerId === listing.active_buyer_id ? (
               <View style={{ width: '100%' }}>
                 {listing.ticket_received ? (
-                  <View style={{ padding: 15, backgroundColor: '#dcfce7', borderRadius: 8, width: '100%', alignItems: 'center' }}>
-                    <Text style={{ color: '#166534', fontSize: 18, fontWeight: '700' }}>Ticket Received!</Text>
-                    <Text style={{ color: '#166534', marginTop: 4 }}>Funds have been released to the seller.</Text>
+                  <View style={{ padding: 15, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border, borderRadius: 8, width: '100%', alignItems: 'center' }}>
+                    <Text style={{ color: theme.primary, fontSize: 18, fontWeight: '700' }}>Ticket Received!</Text>
+                    <Text style={{ color: theme.text, marginTop: 4 }}>Funds have been released to the seller.</Text>
                   </View>
                 ) : listing.ticket_sent ? (
-                  <View style={{ padding: 15, backgroundColor: '#e0f2fe', borderRadius: 8, width: '100%' }}>
-                    <Text style={{ color: '#0369a1', fontSize: 18, fontWeight: '700' }}>Action Required</Text>
-                    <Text style={{ color: '#0369a1', marginTop: 8, marginBottom: 15, lineHeight: 22 }}>
+                  <View style={{ padding: 15, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border, borderRadius: 8, width: '100%' }}>
+                    <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>Action Required</Text>
+                    <Text style={{ color: theme.tabIconDefault, marginTop: 8, marginBottom: 15, lineHeight: 22 }}>
                       The seller has confirmed transferring the ticket to you. Please click below to release their payout.
                     </Text>
-                    <Button onPress={handleConfirmReceipt} style={{ backgroundColor: '#22c55e', width: '100%' }}>
-                      Confirm Ticket Received
-                    </Button>
+                    <TouchableOpacity onPress={handleConfirmReceipt} style={{ backgroundColor: theme.primary, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center' }}>
+                      <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>Confirm Ticket Received</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : (
-                  <View style={{ padding: 15, backgroundColor: '#f3f4f6', borderRadius: 8, width: '100%' }}>
-                    <Text style={{ color: '#374151', fontSize: 18, fontWeight: '700' }}>Awaiting Transfer</Text>
-                    <Text style={{ color: '#4b5563', marginTop: 8, lineHeight: 22 }}>
+                  <View style={{ padding: 15, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border, borderRadius: 8, width: '100%' }}>
+                    <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>Awaiting Transfer</Text>
+                    <Text style={{ color: theme.tabIconDefault, marginTop: 8, lineHeight: 22 }}>
                       Your payment is secure in escrow. We are waiting for the seller to transfer the ticket. This page will update once they send it.
                     </Text>
                   </View>
                 )}
                 <TouchableOpacity onPress={() => setReportModalVisible(true)} style={{ marginTop: 15, alignSelf: 'center' }}>
-                  <Text style={{ color: '#ef4444', fontWeight: '600' }}>Report an Issue</Text>
+                  <Text style={{ color: theme.error, fontWeight: '600' }}>Report an Issue</Text>
                 </TouchableOpacity>
               </View>
             ) : buyerId === listing.seller_id ? (
               <View style={{ width: '100%' }}>
                 {listing.ticket_sent ? (
                   listing.ticket_received && sellerNeedsToRate ? (
-                    <View style={{ padding: 15, backgroundColor: '#f3e8ff', borderRadius: 8, width: '100%', alignItems: 'center' }}>
-                      <Text style={{ color: '#6b21a8', fontSize: 18, fontWeight: '700' }}>Transaction Complete!</Text>
-                      <Text style={{ color: '#6b21a8', marginTop: 4, textAlign: 'center', marginBottom: 15 }}>
+                    <View style={{ padding: 15, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border, borderRadius: 8, width: '100%', alignItems: 'center' }}>
+                      <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>Transaction Complete!</Text>
+                      <Text style={{ color: theme.tabIconDefault, marginTop: 4, textAlign: 'center', marginBottom: 15 }}>
                         The buyer received the ticket. Please rate them below.
                       </Text>
                       <Rating
@@ -347,79 +359,83 @@ export default function ListingDetails() {
                         fractions={2}
                         startingValue={0}
                         imageSize={40}
-                        tintColor={Colors[colorScheme].background}
+                        tintColor={theme.card}
                         onFinishRating={(rating: number) => setRatingValue(rating)}
                         style={{ paddingVertical: 10 }}
                       />
                       <TextInput
                         style={{
-                          backgroundColor: 'rgba(255,255,255,0.7)', color: '#6b21a8', width: '100%',
+                          backgroundColor: theme.tint, color: theme.text, width: '100%',
                           borderRadius: 8, padding: 10, marginTop: 15, height: 60, textAlignVertical: 'top'
                         }}
                         placeholder="Optional comment..."
-                        placeholderTextColor="#a855f7"
+                        placeholderTextColor={theme.tabIconDefault}
                         multiline
                         value={reviewComment}
                         onChangeText={setReviewComment}
                       />
-                      <Button disabled={submittingReview} onPress={submitReview} style={{ backgroundColor: '#9333ea', width: '100%', marginTop: 15 }}>
-                        {submittingReview ? "Submitting..." : "Submit Review"}
-                      </Button>
+                      <TouchableOpacity disabled={submittingReview} onPress={submitReview} style={{ backgroundColor: theme.primary, width: '100%', marginTop: 15, padding: 14, borderRadius: 8, alignItems: 'center', opacity: submittingReview ? 0.7 : 1 }}>
+                        <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>{submittingReview ? "Submitting..." : "Submit Review"}</Text>
+                      </TouchableOpacity>
                     </View>
                   ) : (
-                    <View style={{ padding: 15, backgroundColor: '#fef08a', borderRadius: 8, width: '100%', alignItems: 'center' }}>
-                      <Text style={{ color: '#854d0e', fontSize: 18, fontWeight: '700' }}>Ticket Transferred!</Text>
-                      <Text style={{ color: '#854d0e', marginTop: 4, textAlign: 'center' }}>Awaiting buyer confirmation to release your payout.</Text>
+                    <View style={{ padding: 15, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border, borderRadius: 8, width: '100%', alignItems: 'center' }}>
+                      <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>Ticket Transferred!</Text>
+                      <Text style={{ color: theme.tabIconDefault, marginTop: 4, textAlign: 'center' }}>Awaiting buyer confirmation to release your payout.</Text>
                     </View>
                   )
                 ) : (
-                  <View style={{ padding: 15, backgroundColor: '#fef08a', borderRadius: 8, width: '100%' }}>
-                    <Text style={{ color: '#854d0e', fontSize: 18, fontWeight: '700' }}>Next Step: Transfer Ticket</Text>
-                    <Text style={{ color: '#854d0e', marginTop: 8, marginBottom: 15, lineHeight: 22 }}>
+                  <View style={{ padding: 15, backgroundColor: theme.card, borderWidth: 1, borderColor: theme.border, borderRadius: 8, width: '100%' }}>
+                    <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>Next Step: Transfer Ticket</Text>
+                    <Text style={{ color: theme.tabIconDefault, marginTop: 8, marginBottom: 15, lineHeight: 22 }}>
                       Please transfer the ticket to the buyer. Once transferred, confirm below.
                     </Text>
-                    <Button onPress={handleConfirmSent} style={{ backgroundColor: '#ca8a04', width: '100%' }}>
-                      I Have Transferred the Ticket
-                    </Button>
+                    <TouchableOpacity onPress={handleConfirmSent} style={{ backgroundColor: theme.primary, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center' }}>
+                      <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>I Have Transferred the Ticket</Text>
+                    </TouchableOpacity>
                   </View>
                 )}
                 <TouchableOpacity onPress={() => setReportModalVisible(true)} style={{ marginTop: 15, alignSelf: 'center' }}>
-                  <Text style={{ color: '#ef4444', fontWeight: '600' }}>Report an Issue</Text>
+                  <Text style={{ color: theme.error, fontWeight: '600' }}>Report an Issue</Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Sold</Text>
+              <Text style={{ color: theme.tabIconDefault, fontSize: 18, fontWeight: '700' }}>Sold</Text>
             )
           ) : (
-            <>
-              <Button disabled={loadingPayment} onPress={handleBuy}>Buy</Button>
-              <Button onPress={() => router.push({ 
+            <View style={{ width: '100%', gap: 12 }}>
+              <TouchableOpacity disabled={loadingPayment} onPress={handleBuy} style={{ backgroundColor: theme.primary, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center', opacity: loadingPayment ? 0.7 : 1 }}>
+                <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>Buy Ticket</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push({ 
                 pathname: `/chat/[otherUserId]`, 
                 params: { otherUserId: listing.seller_id, listingId: listing.id } 
-              })}>Make Offer</Button>
-            </>
+              })} style={{ backgroundColor: theme.icon, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center' }}>
+                <Text style={{ color: theme.text, fontWeight: '700', fontSize: 16 }}>Make Offer / Message Seller</Text>
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
-        <View style={{ height: 1, backgroundColor: Colors[colorScheme].icon, marginVertical: 20 }} />
+        <View style={{ height: 1, backgroundColor: theme.icon, marginVertical: 20 }} />
 
-        <Text style={{ color: Colors[colorScheme].text, fontSize: 18, fontWeight: '700' }}>Ticket Details</Text>
-        <View style={{ marginLeft: 20 }}>
-          <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Seller: {listing.seller_id}</Text>
-          <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>AI Suggested Price: €{listing.ai_suggested_price}</Text>
-          <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Event:</Text>
+        <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>Ticket Details</Text>
+        <View style={{ marginLeft: 20, marginTop: 12, gap: 4 }}>
+          <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>Seller: {listing.seller_display_name}</Text>
+          <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>AI Suggested Price: €{listing.ai_suggested_price}</Text>
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700', marginTop: 12 }}>Event Information</Text>
           
-          <View style={{ marginLeft: 20 }}>
-            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Title: {listing.events.title}</Text>
-            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Start Time: {formatDate(listing.events.start_time)}</Text>
-            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Category: {listing.events.category}</Text>
-            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Venue Name: {listing.events.venue_name}</Text>
-            <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>Venue Address:</Text>
+          <View style={{ marginLeft: 20, gap: 4, marginTop: 4 }}>
+            <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>Title: {listing.events.title}</Text>
+            <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>Start Time: {formatDate(listing.events.start_time)}</Text>
+            <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>Category: {listing.events.category}</Text>
+            <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>Venue Name: {listing.events.venue_name}</Text>
+            <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>Venue Address:</Text>
             
             <View style={{ marginLeft: 20 }}>
-              <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>{listing.events.address_line1}</Text>
-              <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>{listing.events.city}</Text>
-              <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 18, fontWeight: '700' }}>{listing.events.region}</Text>
+              <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>{listing.events.address_line1}</Text>
+              <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>{listing.events.city}</Text>
+              <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>{listing.events.region}</Text>
             </View>
           </View>
         </View>
@@ -427,12 +443,12 @@ export default function ListingDetails() {
 
       <Modal visible={reviewModalVisible} animationType="slide" transparent={true}>
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ backgroundColor: Colors[colorScheme].background, padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '50%' }}>
+          <View style={{ backgroundColor: theme.card, padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '50%' }}>
             
-            <Text style={{ fontSize: 22, fontWeight: 'bold', color: Colors[colorScheme].text, textAlign: 'center', marginBottom: 10 }}>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: theme.text, textAlign: 'center', marginBottom: 10 }}>
               Ticket Secured!
             </Text>
-            <Text style={{ fontSize: 16, color: Colors[colorScheme].tabIconDefault, textAlign: 'center', marginBottom: 20 }}>
+            <Text style={{ fontSize: 16, color: theme.tabIconDefault, textAlign: 'center', marginBottom: 20 }}>
               Rate your experience with the seller!
             </Text>
 
@@ -441,29 +457,29 @@ export default function ListingDetails() {
               fractions={2}
               startingValue={0}
               imageSize={40}
-              tintColor={Colors[colorScheme].background}
+              tintColor={theme.card}
               onFinishRating={(rating: number) => setRatingValue(rating)}
               style={{ paddingVertical: 10 }}
             />
 
             <TextInput
               style={{
-                backgroundColor: Colors[colorScheme].icon, color: Colors[colorScheme].text,
+                backgroundColor: theme.tint, color: theme.text,
                 borderRadius: 10, padding: 15, height: 100, textAlignVertical: 'top', marginVertical: 20
               }}
               placeholder="Leave a comment (optional)..."
-              placeholderTextColor={Colors[colorScheme].tabIconDefault}
+              placeholderTextColor={theme.tabIconDefault}
               multiline
               value={reviewComment}
               onChangeText={setReviewComment}
             />
 
-            <Button disabled={submittingReview} onPress={submitReview} style={{ backgroundColor: '#22c55e' }}>
-              {submittingReview ? "Submitting..." : "Submit Review"}
-            </Button>
+            <TouchableOpacity disabled={submittingReview} onPress={submitReview} style={{ backgroundColor: theme.primary, padding: 14, borderRadius: 8, alignItems: 'center', opacity: submittingReview ? 0.7 : 1 }}>
+              <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>{submittingReview ? "Submitting..." : "Submit Review"}</Text>
+            </TouchableOpacity>
             
             <TouchableOpacity onPress={() => setReviewModalVisible(false)} style={{ marginTop: 15, alignSelf: 'center' }}>
-              <Text style={{ color: Colors[colorScheme].tabIconDefault, fontWeight: '600' }}>Skip for now</Text>
+              <Text style={{ color: theme.tabIconDefault, fontWeight: '600' }}>Skip for now</Text>
             </TouchableOpacity>
 
           </View>
@@ -472,16 +488,16 @@ export default function ListingDetails() {
 
       <Modal visible={reportModalVisible} animationType="slide" transparent={true}>
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ backgroundColor: Colors[colorScheme].background, padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '60%' }}>
+          <View style={{ backgroundColor: theme.card, padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '60%' }}>
             
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold', color: Colors[colorScheme].text }}>Report Issue</Text>
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.text }}>Report Issue</Text>
               <TouchableOpacity onPress={() => setReportModalVisible(false)}>
-                <Text style={{ color: Colors[colorScheme].tabIconDefault, fontSize: 16 }}>Cancel</Text>
+                <Text style={{ color: theme.tabIconDefault, fontSize: 16 }}>Cancel</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={{ color: Colors[colorScheme].text, marginBottom: 10, fontWeight: '600' }}>What is the problem?</Text>
+            <Text style={{ color: theme.text, marginBottom: 10, fontWeight: '600' }}>What is the problem?</Text>
             
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
               {['Ticket Not Received', 'Fake/Invalid Ticket', 'Payment Issue', 'Other'].map((type) => (
@@ -490,29 +506,29 @@ export default function ListingDetails() {
                   onPress={() => setIssueType(type)}
                   style={{ 
                     paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, 
-                    backgroundColor: issueType === type ? '#3b82f6' : Colors[colorScheme].icon 
+                    backgroundColor: issueType === type ? theme.text : theme.icon 
                   }}>
-                  <Text style={{ color: issueType === type ? '#fff' : Colors[colorScheme].text }}>{type}</Text>
+                  <Text style={{ color: issueType === type ? theme.tint : theme.text }}>{type}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={{ color: Colors[colorScheme].text, marginBottom: 10, fontWeight: '600' }}>Details</Text>
+            <Text style={{ color: theme.text, marginBottom: 10, fontWeight: '600' }}>Details</Text>
             <TextInput
               style={{
-                backgroundColor: Colors[colorScheme].icon, color: Colors[colorScheme].text,
+                backgroundColor: theme.tint, color: theme.text,
                 borderRadius: 10, padding: 15, height: 120, textAlignVertical: 'top', marginBottom: 20
               }}
               placeholder="Explain what happened..."
-              placeholderTextColor={Colors[colorScheme].tabIconDefault}
+              placeholderTextColor={theme.tabIconDefault}
               multiline
               value={userMessage}
               onChangeText={setUserMessage}
             />
 
-            <Button disabled={submittingReport} onPress={submitDispute} style={{ backgroundColor: '#ef4444' }}>
-              {submittingReport ? "Submitting..." : "Submit Issue"}
-            </Button>
+            <TouchableOpacity disabled={submittingReport} onPress={submitDispute} style={{ backgroundColor: theme.error, padding: 14, borderRadius: 8, alignItems: 'center', opacity: submittingReport ? 0.7 : 1 }}>
+              <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>{submittingReport ? "Submitting..." : "Submit Issue"}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

@@ -2,7 +2,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { supabase } from "../../lib/supabase";
 
 type ChatListItem = {
@@ -21,7 +21,6 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-
   async function load() {
     const { data: { user } } = await supabase.auth.getUser();
       if (!user) return router.replace("/(auth)/login");
@@ -117,8 +116,7 @@ export default function Users() {
   };
 
   return (
-    <View 
-    style={{ flex: 1, backgroundColor: theme.background }}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 }}>
         <Text style={{ fontSize: 28, fontWeight: "800", color: theme.text }}>
           Messages
@@ -126,13 +124,11 @@ export default function Users() {
       </View>
 
       <FlatList
-        data={profiles}
+        data={loading && !refreshing ? [] : profiles}
         keyExtractor={(p) => p.id}
         contentContainerStyle={{ paddingHorizontal: 16 }}
-        refreshing={loading}
-        onRefresh={load}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
         }
         renderItem={({ item }) => (
           <Pressable
@@ -168,11 +164,15 @@ export default function Users() {
           </Pressable>
         )}
         ListEmptyComponent={
-          !loading ? (
+          loading && !refreshing ? (
+            <View style={{ marginTop: 40, alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={theme.text} />
+            </View>
+          ) : (
             <View style={{ marginTop: 40, alignItems: 'center' }}>
               <Text style={{ color: theme.tabIconDefault, fontSize: 16 }}>No messages yet.</Text>
             </View>
-          ) : null
+          )
         }
       />
     </View>

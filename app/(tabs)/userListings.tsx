@@ -3,18 +3,25 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
 export default function UserListings() {
     const colorScheme = useColorScheme() ?? 'light';
     const theme = Colors[colorScheme];
     const [myListings, setMyListings] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchMyListings();
     }, []);
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await fetchMyListings();
+        setRefreshing(false);
+    };
 
     const fetchMyListings = async () => {
         try {
@@ -47,24 +54,29 @@ export default function UserListings() {
     };
 
     const getAiPriceColour = (userPrice?: number, aiPrice?: number) => {
-        if (userPrice === undefined || aiPrice === undefined) return "green"; 
+        if (userPrice === undefined || aiPrice === undefined) return "#A4CBB4"; 
         const aiPriceFive = (aiPrice / 100) * 5;
         
-        if (userPrice >= aiPrice + (aiPriceFive * 2)) return "red";
-        if (userPrice >= aiPrice + aiPriceFive) return "orange";
-        return "green";
+        if (userPrice >= aiPrice + (aiPriceFive * 2)) return theme.error;
+        if (userPrice >= aiPrice + aiPriceFive) return "#E2C28A";
+        return "#A4CBB4";
     };
 
-    if (loading) {
+    if (loading && !refreshing) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }}>
-                <ActivityIndicator size="large" />
+                <ActivityIndicator size="large" color={theme.primary} />
             </View>
         );
     }
 
     return (
-        <ScrollView style={{ flex: 1, backgroundColor: theme.background, padding: 20 }}>
+        <ScrollView 
+            style={{ flex: 1, backgroundColor: theme.background, padding: 20 }}
+            refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
+            }
+        >
             {myListings.length === 0 ? (
                 <Text style={{ color: theme.tabIconDefault, fontSize: 16, marginTop: 20, textAlign: 'center' }}>
                     You have no active or past listings.
@@ -109,22 +121,22 @@ export default function UserListings() {
 
                                     <View>
                                         {listing.status === 'active' && (
-                                            <Text style={{ color: '#0284c7', backgroundColor: '#e0f2fe', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Active</Text>
+                                            <Text style={{ color: theme.tint, backgroundColor: theme.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Active</Text>
                                         )}
                                         {listing.status === 'pending' && (
-                                            <Text style={{ color: '#d97706', backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Pending</Text>
+                                            <Text style={{ color: theme.tint, backgroundColor: '#E2C28A', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Pending</Text>
                                         )}
                                         {listing.status === 'sold' && !listing.ticket_sent && (
-                                            <Text style={{ color: '#dc2626', backgroundColor: '#fee2e2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Needs Transfer</Text>
+                                            <Text style={{ color: theme.tint, backgroundColor: theme.error, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Needs Transfer</Text>
                                         )}
                                         {listing.status === 'sold' && listing.ticket_sent && !listing.ticket_received && (
-                                            <Text style={{ color: '#854d0e', backgroundColor: '#fef08a', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Awaiting Buyer</Text>
+                                            <Text style={{ color: theme.tint, backgroundColor: '#E2C28A', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Awaiting Buyer</Text>
                                         )}
                                         {listing.status === 'sold' && listing.ticket_received && !hasRated && (
-                                            <Text style={{ color: '#6b21a8', backgroundColor: '#f3e8ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Rate Buyer</Text>
+                                            <Text style={{ color: theme.tint, backgroundColor: theme.text, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Rate Buyer</Text>
                                         )}
                                         {listing.status === 'sold' && listing.ticket_received && hasRated && (
-                                            <Text style={{ color: '#166534', backgroundColor: '#dcfce7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Complete</Text>
+                                            <Text style={{ color: theme.tint, backgroundColor: '#A4CBB4', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Complete</Text>
                                         )}
                                     </View>
                                 </View>

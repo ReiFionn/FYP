@@ -41,7 +41,6 @@ export default function Profile() {
     setRefreshing(false);
   };
 
-
   const fetchUserData = async () => {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -78,12 +77,12 @@ export default function Profile() {
   };
 
   const getAiPriceColour = (userPrice?: number, aiPrice?: number) => {
-    if (userPrice === undefined || aiPrice === undefined) return "green"; // Fallback
+    if (userPrice === undefined || aiPrice === undefined) return "#A4CBB4";
     const aiPriceFive = (aiPrice / 100) * 5;
     
-    if (userPrice >= aiPrice + (aiPriceFive * 2)) return "red";
-    if (userPrice >= aiPrice + aiPriceFive) return "orange";
-    return "green";
+    if (userPrice >= aiPrice + (aiPriceFive * 2)) return theme.error;
+    if (userPrice >= aiPrice + aiPriceFive) return "#E2C28A";
+    return "#A4CBB4";
   };
 
   const renderItemCard = (item: Item, type: 'Listing' | 'Purchase') => {
@@ -230,7 +229,7 @@ export default function Profile() {
     <ScrollView 
     style={{ flex: 1, backgroundColor: theme.background }}
     refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
       }>
       <TouchableOpacity 
         onPress={() => router.push('/userSettings')}
@@ -254,7 +253,7 @@ export default function Profile() {
         <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 4, color: theme.text }}>
           {profile?.display_name}
         </Text>
-        <Text style={{ fontSize: 18, letterSpacing: 2 }}>
+        <Text style={{ fontSize: 18, letterSpacing: 2, color: theme.text }}>
           {renderStars(profile?.trust_rating || 0)} <Text style={{ color: theme.tabIconDefault, fontSize: 14 }}>({Number(profile?.trust_rating || 0).toFixed(1)}/5)</Text>
         </Text>
       </View>
@@ -305,7 +304,7 @@ export default function Profile() {
         }}
       >
         <Text style={{ 
-          color: 'red', 
+          color: theme.error, 
           fontSize: 16, 
           fontWeight: '700' 
         }}>Log Out</Text>

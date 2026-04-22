@@ -18,7 +18,10 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const CATEGORIES = ["Today", "Rock", "Pop", "Rap", "Electronic"];
+const CATEGORIES = [
+  "Today", "Tomorrow", "Pop", "Rock", "Electronic", "Rap", "Indie", "R&B", 
+  "Country", "Jazz", "Classical", "Comedy", "Theater", "Sports", "Festival", "Other"
+];
 
 type Event = {
   id: string;
@@ -139,11 +142,11 @@ export default function Index() {
     const aiPriceFive = aiPrice/100*5
 
     if (userPrice >= aiPrice + (aiPriceFive*2))
-      aiPriceColour = "red"
+      aiPriceColour = Colors[colorScheme].error;
     else if (userPrice >= aiPrice + aiPriceFive)
-      aiPriceColour = "orange"
+      aiPriceColour = "#E2C28A"
     else
-      aiPriceColour = "green"
+      aiPriceColour = "#A4CBB4"
   }
 
   const isToday = (dateString: string) => {
@@ -152,12 +155,21 @@ export default function Index() {
     return eventDate.getDate() === today.getDate() && eventDate.getMonth() === today.getMonth() && eventDate.getFullYear() === today.getFullYear();
   };
 
+  const isTomorrow = (dateString: string) => {
+    const eventDate = new Date(dateString);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return eventDate.getDate() === tomorrow.getDate() && eventDate.getMonth() === tomorrow.getMonth() && eventDate.getFullYear() === tomorrow.getFullYear();
+  };
+
   const displayedListings = allData.filter(listing => {
     const matchesSearch = listing.events.title?.toLowerCase().includes(searchQuery.toLowerCase());
     
     let matchesCategory = true;
     if (activeCategory === "Today") {
       matchesCategory = isToday(listing.events.start_time);
+    } else if (activeCategory === "Tomorrow") {
+      matchesCategory = isTomorrow(listing.events.start_time);
     } else if (activeCategory) {
       matchesCategory = listing.events.category === activeCategory;
     }
@@ -192,7 +204,7 @@ export default function Index() {
               />
             ) : (
               <View style={{ height: 160, backgroundColor: Colors[colorScheme].icon, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: Colors[colorScheme].tabIconDefault }}>Placeholder</Text>
+                <Text style={{ color: Colors[colorScheme].tabIconDefault, fontWeight: '600' }}>No Image Available</Text>
               </View>
             )}
         </View>
@@ -280,7 +292,7 @@ export default function Index() {
           </View>
         }
         ListEmptyComponent={() => (
-          <Text style={{ color: 'gray', textAlign: 'center', marginTop: 40 }}>No events found.</Text>
+          <Text style={{ color: Colors[colorScheme].tabIconDefault, textAlign: 'center', marginTop: 40 }}>No events found.</Text>
         )}
       />
     </View>

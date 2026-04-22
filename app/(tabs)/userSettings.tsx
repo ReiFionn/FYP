@@ -74,7 +74,13 @@ export default function Settings() {
         }
     };
 
-    if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+    if (loading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }}>
+                <ActivityIndicator size="large" color={theme.primary} />
+            </View>
+        );
+    }
 
     return (
         <ScrollView style={{ flex: 1, backgroundColor: theme.background, padding: 20 }}>
@@ -87,36 +93,36 @@ export default function Settings() {
             onChangeText={setDisplayName}
             style={{
                 borderWidth: 1,
-                borderColor: theme.icon,
+                borderColor: theme.border,
                 borderRadius: 8,
                 padding: 12,
                 color: theme.text,
-                backgroundColor: theme.background
+                backgroundColor: theme.tint
             }}
             />
             <TouchableOpacity 
             onPress={handleSaveProfile}
             disabled={saving}
-            style={{ backgroundColor: '#0284c7', padding: 12, borderRadius: 8, marginTop: 12, alignItems: 'center' }}
+            style={{ backgroundColor: theme.primary, padding: 12, borderRadius: 8, marginTop: 12, alignItems: 'center', opacity: saving ? 0.7 : 1 }}
             >
-            <Text style={{ color: '#fff', fontWeight: 'bold' }}>{saving ? 'Saving...' : 'Save Changes'}</Text>
+            <Text style={{ color: theme.tint, fontWeight: 'bold' }}>{saving ? 'Saving...' : 'Save Changes'}</Text>
             </TouchableOpacity>
         </View>
 
-        <View style={{ padding: 15, backgroundColor: theme.icon, borderRadius: 12 }}>
+        <View style={{ padding: 15, backgroundColor: theme.card, borderRadius: 12, borderWidth: 1, borderColor: theme.border }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: theme.text }}>Payout Details</Text>
             <Text style={{ color: theme.tabIconDefault, marginTop: 4, marginBottom: 15 }}>
                 To receive money from sold tickets, you must connect a bank account via Stripe.
             </Text>
             
             {stripeAccountId ? (
-            <Text style={{ color: '#166534', fontWeight: 'bold' }}>Bank Account Connected!</Text>
+            <Text style={{ color: theme.primary, fontWeight: 'bold' }}>Bank Account Connected!</Text>
             ) : (
             <TouchableOpacity 
                 onPress={handleConnectBank}
-                style={{ backgroundColor: '#635BFF', padding: 12, borderRadius: 8, alignItems: 'center' }}
+                style={{ backgroundColor: theme.text, padding: 12, borderRadius: 8, alignItems: 'center' }}
             >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Set Up Payouts</Text>
+                <Text style={{ color: theme.background, fontWeight: 'bold' }}>Set Up Payouts</Text>
             </TouchableOpacity>
             )}
         </View>

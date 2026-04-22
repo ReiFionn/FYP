@@ -3,9 +3,12 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, ListRenderItem, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, ListRenderItem, RefreshControl, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-const CATEGORIES = ["All", "Rock", "Pop", "Rap", "Electronic"];
+const CATEGORIES = [
+  "All", "Pop", "Rock", "Electronic", "Rap", "Indie", "R&B", 
+  "Country", "Jazz", "Classical", "Comedy", "Theater", "Sports", "Festival", "Other"
+];
 const DATES = ["Anytime", "Today", "Tomorrow", "This Week", "This Month"];
 const SORTS = [
   { label: 'Recently Added', value: 'newest' }, 
@@ -39,6 +42,7 @@ export default function Search() {
   const theme = Colors[colorScheme];
   const [results, setResults] = useState<ListingWithEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeDate, setActiveDate] = useState("Anytime");
@@ -47,6 +51,12 @@ export default function Search() {
   useEffect(() => {
     executeSearch();
   }, [activeCategory, activeDate, activeSort]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await executeSearch();
+    setRefreshing(false);
+  };
 
   const executeSearch = async () => {
     setLoading(true);
@@ -108,9 +118,9 @@ export default function Search() {
 
   const getAiPriceColour = (userPrice: number, aiPrice: number) => {
     const aiPriceFive = (aiPrice / 100) * 5;
-    if (userPrice >= aiPrice + (aiPriceFive * 2)) return "red";
-    if (userPrice >= aiPrice + aiPriceFive) return "orange";
-    return "green";
+    if (userPrice >= aiPrice + (aiPriceFive * 2)) return theme.error; 
+    if (userPrice >= aiPrice + aiPriceFive) return "#E2C28A";
+    return "#A4CBB4";
   };
 
   const renderListing: ListRenderItem<ListingWithEvent> = ({ item }) => {
@@ -191,10 +201,13 @@ export default function Search() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <FlatList
-        data={loading ? [] : results} 
+        data={loading && !refreshing ? [] : results} 
         keyExtractor={(i) => i.id}
         renderItem={renderListing}
         contentContainerStyle={{ padding: 16 }} 
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />
+        }
         ListHeaderComponent={
           <View style={{ marginBottom: 8 }}>
             <Text style={{ fontSize: 28, fontWeight: "800", color: theme.text, marginBottom: 12 }}>
@@ -225,7 +238,7 @@ export default function Search() {
         }
         
         ListEmptyComponent={
-          loading ? (
+          loading && !refreshing ? (
             <View style={{ marginTop: 40, alignItems: 'center' }}>
               <ActivityIndicator size="large" color={theme.text} />
             </View>

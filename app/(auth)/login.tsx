@@ -1,13 +1,19 @@
 import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Button, Text, TextInput, useColorScheme, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../lib/supabase";
 
 export default function Login() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const colorScheme = useColorScheme() ?? 'light';
+  const [displayName, setDisplayName] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -15,47 +21,121 @@ export default function Login() {
     });
   }, []);
 
-  async function signUp() {
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) return alert(error.message);
-    alert("Signed up! Now log in.");
-  }
+  async function handleAuth() {
+    if (!email || !password) {
+      Alert.alert("Missing Fields", "Please enter an email and password.");
+      return;
+    }
 
-  async function signIn() {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return alert(error.message);
-    router.replace("../(tabs)");
+    setLoading(true);
+
+    if (isSignUp) {
+      if (!displayName.trim()) {
+        Alert.alert("Missing Name", "Please enter a display name.");
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: {
+            display_name: displayName.trim(),
+          }
+        }
+      });
+      
+      if (error) {
+        Alert.alert("Error", error.message);
+      } else {
+        Alert.alert("Success", "Account created! You can now log in.");
+        setIsSignUp(false);
+        setPassword("");
+      }
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        Alert.alert("Login Failed", error.message);
+      } else {
+        router.replace("../(tabs)");
+      }
+    }
+
+    setLoading(false);
   }
 
   return (
-    <View style={{ flex: 1, padding: 16, backgroundColor: Colors[colorScheme].background }}>
-      <Text style={{ fontSize: 22, fontWeight: "700", color: Colors[colorScheme].text, marginBottom: 12 }}>
-        Login
-      </Text>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === "ios" ? "padding" : "height"} 
+      style={{ flex: 1, backgroundColor: theme.background }}
+    >
+      <View style={{ flex: 1, padding: 20, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 32, fontWeight: "800", color: theme.text, marginBottom: 8 }}>
+          {isSignUp ? "Create Account" : "Agorex"}
+        </Text>
+        <Text style={{ fontSize: 16, color: theme.tabIconDefault, marginBottom: 32 }}>
+          {isSignUp ? "Sign up to start buying and selling tickets." : "Log in to manage your tickets and offers."}
+        </Text>
 
-      <TextInput
-        placeholder="Email"
-        autoCapitalize="none"
-        value={email}
-        onChangeText={setEmail}
-        placeholderTextColor={Colors[colorScheme].tint}
-        style={{ borderWidth: 1, borderColor: Colors[colorScheme].tint, padding: 10, borderRadius: 10, marginBottom: 10, color: Colors[colorScheme].tint }}
-      />
+        {isSignUp && (
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '600' }}>Display Name</Text>
+            <TextInput
+              placeholder="e.g. fionn777"
+              placeholderTextColor={theme.tabIconDefault}
+              value={displayName}
+              onChangeText={setDisplayName}
+              style={{ backgroundColor: theme.tint, borderWidth: 1, borderColor: theme.border, padding: 16, borderRadius: 12, color: theme.text, fontSize: 16 }}
+            />
+          </View>
+        )}
 
-      <TextInput
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        placeholderTextColor={Colors[colorScheme].tint}
-        style={{ borderWidth: 1, borderColor: Colors[colorScheme].tint, padding: 10, borderRadius: 10, marginBottom: 10, color: Colors[colorScheme].tint }}
-      />
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '600' }}>Email</Text>
+          <TextInput
+            placeholder="hello@agorex.com"
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            placeholderTextColor={theme.tabIconDefault}
+            style={{ backgroundColor: theme.tint, borderWidth: 1, borderColor: theme.border, padding: 16, borderRadius: 12, color: theme.text, fontSize: 16 }}
+          />
+        </View>
 
-      <Button title="Log in" onPress={signIn} color={Colors[colorScheme].text} />
-      <View style={{ height: 10 }} />
-      <Button title="Sign up" onPress={signUp} color={Colors[colorScheme].text} />
-    </View>
+        <View style={{ marginBottom: 32 }}>
+          <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '600' }}>Password</Text>
+          <TextInput
+            placeholder="********"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            placeholderTextColor={theme.tabIconDefault}
+            style={{ backgroundColor: theme.tint, borderWidth: 1, borderColor: theme.border, padding: 16, borderRadius: 12, color: theme.text, fontSize: 16 }}
+          />
+        </View>
+
+        <TouchableOpacity 
+          onPress={handleAuth} 
+          disabled={loading}
+          style={{ backgroundColor: theme.primary, padding: 16, borderRadius: 12, alignItems: 'center', opacity: loading ? 0.7 : 1, marginBottom: 16 }}
+        >
+          {loading ? (
+            <ActivityIndicator color={theme.tint} />
+          ) : (
+            <Text style={{ color: theme.tint, fontSize: 16, fontWeight: "700" }}>
+              {isSignUp ? "Sign Up" : "Log In"}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)} style={{ padding: 12, alignItems: 'center' }}>
+          <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600' }}>
+            {isSignUp ? "Already have an account? Log In" : "Don't have an account? Sign Up"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
-
-// https://supabase.com/docs/guides/auth/passwords
