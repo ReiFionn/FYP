@@ -116,7 +116,7 @@ export default function Index() {
   const fetchListings = async () => {
     try {
       const { data: listings, error } = await supabase
-        .from('listings').select(`*, events (id, title, age_restriction, start_time, venue_name, city, category)`).eq('status', 'active');
+        .from('listings').select(`*, events (id, title, age_restriction, start_time, venue_name, city, category)`).in('status', ['active', 'pending']);
 
       if (error) throw error;
 

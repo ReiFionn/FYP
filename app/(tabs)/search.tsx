@@ -54,7 +54,7 @@ export default function Search() {
       let dbQuery = supabase
         .from('listings')
         .select(`*, events!inner (id, title, age_restriction, start_time, venue_name, city, category)`)
-        .eq('status', 'active');
+        .in('status', ['active', 'pending']);
 
       if (searchQuery.trim()) {
         const term = `%${searchQuery.trim()}%`;

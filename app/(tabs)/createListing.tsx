@@ -29,49 +29,50 @@ export default function CreateListingTest() {
   const [platformOfPuchase, setPlatformOfPurchase] = useState('');
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const { askGemini } = useGemini();
+  const [placeId, setPlaceId] = useState('');
 
   const resetForm = () => {
-  setTitle('');
-  setPrice('');
-  setSection('');
-  setRow('');
-  setDate(new Date());
-  setDateMetadata(new Date());
-  setVenueName('');
-  setAddress('');
-  setCity('');
-  setRegion('');
-  setCategory('');
-  setPlatformOfPurchase('');
-  setReceiptUri(null);
-};
+    setTitle('');
+    setPrice('');
+    setSection('');
+    setRow('');
+    setDate(new Date());
+    setDateMetadata(new Date());
+    setVenueName('');
+    setAddress('');
+    setCity('');
+    setRegion('');
+    setCategory('');
+    setPlatformOfPurchase('');
+    setReceiptUri(null);
+  };
 
-//   type Event = {
-//   id: string;
-//   title: string;
-//   start_time: string;
-//   venue_name: string;
-//   address_line1: string;
-//   city: string;
-//   region: string;
-//   category: string;
-// };
+  //   type Event = {
+  //   id: string;
+  //   title: string;
+  //   start_time: string;
+  //   venue_name: string;
+  //   address_line1: string;
+  //   city: string;
+  //   region: string;
+  //   category: string;
+  // };
 
-// type ListingWithEvent = {
-//   id: string;
-//   seller_id: string;
-//   status: string;
-//   listing_price: number;
-//   events: Event; 
-// };
+  // type ListingWithEvent = {
+  //   id: string;
+  //   seller_id: string;
+  //   status: string;
+  //   listing_price: number;
+  //   events: Event; 
+  // };
 
-const categoryData = [
-  { label: 'Pop', value: 'Pop'},
-  { label: 'Rock', value: 'Rock'},
-  { label: 'Electronic', value: 'Electronic'},
-  { label: 'Rap', value: 'Rap'},
-  { label: 'Ambient', value: 'Ambient'},
-];
+  const categoryData = [
+    { label: 'Pop', value: 'Pop'},
+    { label: 'Rock', value: 'Rock'},
+    { label: 'Electronic', value: 'Electronic'},
+    { label: 'Rap', value: 'Rap'},
+    { label: 'Ambient', value: 'Ambient'},
+  ];
 
   const handleCreateListing = async () => {
     if (!price || isNaN(Number(price))) {
@@ -82,7 +83,6 @@ const categoryData = [
     setLoading(true);
 
     let currentUser;
-    let createdEvent;
 
     try {
       const prompt = `You are a ticket pricing AI. Suggest a price for what this ticket would have been bought for in Euros: "${title}" at "${venueName}, ${address}, ${city}, ${region}". The ticket was purchased from ${platformOfPuchase} at ${dateMetadata}. Return ONLY a valid number, no symbols, no text.`;
@@ -98,22 +98,65 @@ const categoryData = [
       if (!authData.user) throw new Error("Not authenticated");
       currentUser = authData.user; 
 
-      const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .insert([{
-          title: title,
-          start_time: date.toISOString(),
-          venue_name: venueName, 
-          address_line1: address, 
-          city: city, 
-          region: region, 
-          category: category 
-        }])
-        .select()
-        .single();
+      const { data: duplicateId, error: rpcError } = await supabase.rpc('find_duplicate_event', {
+        p_title: title,
+        p_place_id: placeId,
+        p_start_time: date.toISOString()
+      });
 
-      if (eventError) throw eventError;
-      createdEvent = eventData;
+      if (rpcError) throw rpcError;
+
+      let finalEventId;
+      if (duplicateId) {
+        finalEventId = duplicateId;
+      } else {
+        const { data: eventData, error: eventError } = await supabase
+          .from('events')
+          .insert([{
+            title: title,
+            start_time: date.toISOString(),
+            venue_name: venueName, 
+            address_line1: address, 
+            city: city, 
+            region: region, 
+            category: category,
+            google_place_id: placeId
+          }])
+          .select('id');
+          
+        if (eventError) throw eventError;
+        finalEventId = (eventData as any).id;
+      }
+
+      let finalAiPrice = null;
+      const targetSection = section || 'GA';
+
+      if (duplicateId) {
+        const { data: existingListing, error: fetchError } = await supabase
+          .from('listings')
+          .select('ai_suggested_price')
+          .eq('event_id', finalEventId)
+          .eq('original_purchase_metadata->>section', targetSection)
+          .limit(1)
+          .maybeSingle();
+
+        if (existingListing?.ai_suggested_price) {
+          finalAiPrice = existingListing.ai_suggested_price;
+          console.log(`Reusing existing AI price for section ${targetSection}: €${finalAiPrice}`);
+        }
+      }
+
+      if (!finalAiPrice) {
+        console.log("Asking Gemini for a new price...");
+        
+        const sectionContext = section ? ` for section "${section}"` : '';
+        const prompt = `You are a ticket pricing AI. Suggest a price for what this ticket would have been bought for in Euros: "${title}" at "${venueName}, ${address}, ${city}, ${region}"${sectionContext}. The ticket was purchased from ${platformOfPuchase} at ${dateMetadata}. Return ONLY a valid number, no symbols, no text.`;
+        
+        const aiResponse = await askGemini(prompt);
+        finalAiPrice = (aiResponse && !isNaN(Number(aiResponse))) 
+          ? parseFloat(aiResponse) 
+          : parseFloat(price) * 0.9;
+      }
 
       let receiptUrl = null;
       if (receiptUri) {
@@ -144,10 +187,10 @@ const categoryData = [
         .from('listings')
         .insert([{
           seller_id: currentUser.id,
-          event_id: createdEvent.id,
+          event_id: finalEventId,
           status: 'active',
           listing_price: parseFloat(price),
-          ai_suggested_price: aiPrice,
+          ai_suggested_price: finalAiPrice,
           artist_image_url: fetchedArtistImageUrl,
           original_purchase_metadata: {
             source: platformOfPuchase || "App Form",
@@ -277,6 +320,7 @@ const categoryData = [
               onPress={(data, details = null) => {
                 if (!details) return;
                 setVenueName(data.structured_formatting.main_text);
+                setPlaceId(data.place_id);
 
                 let foundCity = '';
                 let foundRegion = '';

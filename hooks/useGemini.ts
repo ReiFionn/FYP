@@ -12,7 +12,13 @@ export const useGemini = () => {
     setError(null);
 
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }); 
+      const model = genAI.getGenerativeModel({ 
+        model: 'gemini-2.5-flash',
+        generationConfig: {
+          temperature: 0.0,
+        }
+      }); 
+      
       const result = await model.generateContent(prompt);
       return result.response.text();
     } catch (err: any) {
