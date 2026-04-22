@@ -1,13 +1,5 @@
-import { useEffect } from "react";
-import { router } from "expo-router";
-import { supabase } from "../lib/supabase";
+import { Redirect } from "expo-router";
 
 export default function Index() {
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      router.replace(data.user ? "../(tabs)/index" : "/(auth)/login");
-    });
-  }, []);
-
-  return null;
+  return <Redirect href="/(tabs)" />;
 }

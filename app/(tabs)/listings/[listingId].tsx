@@ -281,15 +281,15 @@ export default function ListingDetails() {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.background }}>
       
-      {listing.artist_image_url ? (
+      {listing.artist_image_url && listing.artist_image_url.trim() !== "" && listing.artist_image_url !== "null" ? (
         <Image 
           source={{ uri: listing.artist_image_url }} 
           style={{ width: '100%', height: 250 }} 
           resizeMode="cover"
         />
       ) : (
-        <View style={{ height: 250, backgroundColor: theme.icon, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: theme.tabIconDefault }}>Placeholder</Text>
+        <View style={{ height: 250, backgroundColor: theme.tint, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: '600' }}>No Image Available</Text>
         </View>
       )}
 
@@ -404,13 +404,39 @@ export default function ListingDetails() {
             )
           ) : (
             <View style={{ width: '100%', gap: 12 }}>
-              <TouchableOpacity disabled={loadingPayment} onPress={handleBuy} style={{ backgroundColor: theme.primary, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center', opacity: loadingPayment ? 0.7 : 1 }}>
+              <TouchableOpacity 
+                disabled={loadingPayment} 
+                onPress={() => {
+                  if (!buyerId) {
+                    Alert.alert("Sign In Required", "Please log in to purchase this ticket.", [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Log In", onPress: () => router.push('/login') }
+                    ]);
+                    return;
+                  }
+                  handleBuy();
+                }} 
+                style={{ backgroundColor: theme.primary, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center', opacity: loadingPayment ? 0.7 : 1 }}
+              >
                 <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>Buy Ticket</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push({ 
-                pathname: `/chat/[otherUserId]`, 
-                params: { otherUserId: listing.seller_id, listingId: listing.id } 
-              })} style={{ backgroundColor: theme.icon, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center' }}>
+              
+              <TouchableOpacity 
+                onPress={() => {
+                  if (!buyerId) {
+                    Alert.alert("Sign In Required", "Please log in to make an offer or message the seller.", [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Log In", onPress: () => router.push('/login') }
+                    ]);
+                    return;
+                  }
+                  router.push({ 
+                    pathname: `/chat/[otherUserId]`, 
+                    params: { otherUserId: listing.seller_id, listingId: listing.id } 
+                  });
+                }} 
+                style={{ backgroundColor: theme.icon, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center' }}
+              >
                 <Text style={{ color: theme.text, fontWeight: '700', fontSize: 16 }}>Make Offer / Message Seller</Text>
               </TouchableOpacity>
             </View>

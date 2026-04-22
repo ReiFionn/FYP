@@ -140,11 +140,11 @@ export default function Search() {
         }}
       >
         <View>
-          {item.artist_image_url ? (
+          {item.artist_image_url && item.artist_image_url.trim() !== "" && item.artist_image_url !== "null" ? (
             <Image source={{ uri: item.artist_image_url }} style={{ width: '100%', height: 160 }} resizeMode="cover" />
           ) : (
-            <View style={{ height: 160, backgroundColor: theme.icon, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ color: theme.tabIconDefault }}>Placeholder</Text>
+            <View style={{ height: 160, backgroundColor: theme.tint, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ color: theme.text, fontWeight: '600' }}>No Image Available</Text>
             </View>
           )}
         </View>

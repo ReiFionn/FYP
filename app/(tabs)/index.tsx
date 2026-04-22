@@ -196,15 +196,15 @@ export default function Index() {
       >
 
         <View>
-          {item.artist_image_url ? (
+          {item.artist_image_url && item.artist_image_url.trim() !== "" && item.artist_image_url !== "null" ? (
               <Image 
                 source={{ uri: item.artist_image_url }} 
                 style={{ width: '100%', height: 160 }} 
                 resizeMode="cover"
               />
             ) : (
-              <View style={{ height: 160, backgroundColor: Colors[colorScheme].icon, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: Colors[colorScheme].tabIconDefault, fontWeight: '600' }}>No Image Available</Text>
+              <View style={{ height: 160, backgroundColor: Colors[colorScheme].tint, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: Colors[colorScheme].text, fontWeight: '600' }}>No Image Available</Text>
               </View>
             )}
         </View>
