@@ -4,7 +4,7 @@ import { useCheckout } from '@/hooks/useCheckout';
 import { supabase } from "@/lib/supabase";
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from "react";
-import { Alert, Image, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Rating } from 'react-native-ratings';
 
 type Event = {
@@ -52,6 +52,9 @@ export default function ListingDetails() {
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [sellerNeedsToRate, setSellerNeedsToRate] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [newPrice, setNewPrice] = useState('');
+  const [updatingPrice, setUpdatingPrice] = useState(false);
 
   useEffect(() => {
     fetchListing();
@@ -190,6 +193,53 @@ export default function ListingDetails() {
         }
       ]
     );
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Listing",
+      "Are you sure? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase.from('listings').delete().eq('id', listing?.id);
+            if (error) {
+              Alert.alert("Error", "Could not delete listing.");
+            } else {
+              router.replace('/(tabs)');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleUpdatePrice = async () => {
+    const priceNum = parseFloat(newPrice);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      Alert.alert("Invalid Price", "Please enter a valid number.");
+      return;
+    }
+
+    setUpdatingPrice(true);
+    
+    const { error } = await supabase
+      .from('listings')
+      .update({ listing_price: priceNum })
+      .eq('id', listing?.id);
+
+    setUpdatingPrice(false);
+
+    if (error) {
+      Alert.alert("Error", "Could not update price. Please try again.");
+    } else {
+      setListing(prev => prev ? { ...prev, listing_price: priceNum } : null);
+      setEditModalVisible(false);
+      Alert.alert("Success", "Listing price updated!");
+    }
   };
 
   const submitDispute = async () => {
@@ -403,43 +453,70 @@ export default function ListingDetails() {
               <Text style={{ color: theme.tabIconDefault, fontSize: 18, fontWeight: '700' }}>Sold</Text>
             )
           ) : (
-            <View style={{ width: '100%', gap: 12 }}>
-              <TouchableOpacity 
-                disabled={loadingPayment} 
-                onPress={() => {
-                  if (!buyerId) {
-                    Alert.alert("Sign In Required", "Please log in to purchase this ticket.", [
-                      { text: "Cancel", style: "cancel" },
-                      { text: "Log In", onPress: () => router.push('/login') }
-                    ]);
-                    return;
-                  }
-                  handleBuy();
-                }} 
-                style={{ backgroundColor: theme.primary, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center', opacity: loadingPayment ? 0.7 : 1 }}
-              >
-                <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>Buy Ticket</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                onPress={() => {
-                  if (!buyerId) {
-                    Alert.alert("Sign In Required", "Please log in to make an offer or message the seller.", [
-                      { text: "Cancel", style: "cancel" },
-                      { text: "Log In", onPress: () => router.push('/login') }
-                    ]);
-                    return;
-                  }
-                  router.push({ 
-                    pathname: `/chat/[otherUserId]`, 
-                    params: { otherUserId: listing.seller_id, listingId: listing.id } 
-                  });
-                }} 
-                style={{ backgroundColor: theme.icon, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center' }}
-              >
-                <Text style={{ color: theme.text, fontWeight: '700', fontSize: 16 }}>Make Offer / Message Seller</Text>
-              </TouchableOpacity>
-            </View>
+            buyerId === listing.seller_id ? (
+              <View style={{ width: '100%', backgroundColor: theme.icon, padding: 16, borderRadius: 12 }}>
+                <Text style={{ color: theme.text, fontWeight: '700', fontSize: 16, textAlign: 'center' }}>
+                  Manage Your Listing
+                </Text>
+                
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      setNewPrice(listing?.listing_price?.toString() || '');
+                      setEditModalVisible(true);
+                    }}
+                    style={{ flex: 1, backgroundColor: theme.primary, padding: 14, borderRadius: 8, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>Edit Price</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    onPress={handleDelete}
+                    style={{ flex: 1, backgroundColor: theme.error, padding: 14, borderRadius: 8, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={{ width: '100%', gap: 12 }}>
+                <TouchableOpacity 
+                  disabled={loadingPayment} 
+                  onPress={() => {
+                    if (!buyerId) {
+                      Alert.alert("Sign In Required", "Please log in to purchase this ticket.", [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Log In", onPress: () => router.push('/login') }
+                      ]);
+                      return;
+                    }
+                    handleBuy();
+                  }} 
+                  style={{ backgroundColor: theme.primary, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center', opacity: loadingPayment ? 0.7 : 1 }}
+                >
+                  <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>Buy Ticket</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  onPress={() => {
+                    if (!buyerId) {
+                      Alert.alert("Sign In Required", "Please log in to make an offer or message the seller.", [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Log In", onPress: () => router.push('/login') }
+                      ]);
+                      return;
+                    }
+                    router.push({ 
+                      pathname: `/chat/[otherUserId]`, 
+                      params: { otherUserId: listing.seller_id, listingId: listing.id } 
+                    });
+                  }} 
+                  style={{ backgroundColor: theme.icon, width: '100%', padding: 14, borderRadius: 8, alignItems: 'center' }}
+                >
+                  <Text style={{ color: theme.text, fontWeight: '700', fontSize: 16 }}>Make Offer / Message Seller</Text>
+                </TouchableOpacity>
+              </View>
+            )
           )}
         </View>
 
@@ -468,95 +545,141 @@ export default function ListingDetails() {
       </View>
 
       <Modal visible={reviewModalVisible} animationType="slide" transparent={true}>
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ backgroundColor: theme.card, padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '50%' }}>
-            
-            <Text style={{ fontSize: 22, fontWeight: 'bold', color: theme.text, textAlign: 'center', marginBottom: 10 }}>
-              Ticket Secured!
-            </Text>
-            <Text style={{ fontSize: 16, color: theme.tabIconDefault, textAlign: 'center', marginBottom: 20 }}>
-              Rate your experience with the seller!
-            </Text>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <View style={{ backgroundColor: theme.card, padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '50%' }}>
+              
+              <Text style={{ fontSize: 22, fontWeight: 'bold', color: theme.text, textAlign: 'center', marginBottom: 10 }}>
+                Ticket Secured!
+              </Text>
+              <Text style={{ fontSize: 16, color: theme.tabIconDefault, textAlign: 'center', marginBottom: 20 }}>
+                Rate your experience with the seller!
+              </Text>
 
-            <Rating
-              type="star"
-              fractions={2}
-              startingValue={0}
-              imageSize={40}
-              tintColor={theme.card}
-              onFinishRating={(rating: number) => setRatingValue(rating)}
-              style={{ paddingVertical: 10 }}
-            />
+              <Rating
+                type="star"
+                fractions={2}
+                startingValue={0}
+                imageSize={40}
+                tintColor={theme.card}
+                onFinishRating={(rating: number) => setRatingValue(rating)}
+                style={{ paddingVertical: 10 }}
+              />
 
-            <TextInput
-              style={{
-                backgroundColor: theme.tint, color: theme.text,
-                borderRadius: 10, padding: 15, height: 100, textAlignVertical: 'top', marginVertical: 20
-              }}
-              placeholder="Leave a comment (optional)..."
-              placeholderTextColor={theme.tabIconDefault}
-              multiline
-              value={reviewComment}
-              onChangeText={setReviewComment}
-            />
+              <TextInput
+                style={{
+                  backgroundColor: theme.tint, color: theme.text,
+                  borderRadius: 10, padding: 15, height: 100, textAlignVertical: 'top', marginVertical: 20
+                }}
+                placeholder="Leave a comment (optional)..."
+                placeholderTextColor={theme.tabIconDefault}
+                multiline
+                value={reviewComment}
+                onChangeText={setReviewComment}
+              />
 
-            <TouchableOpacity disabled={submittingReview} onPress={submitReview} style={{ backgroundColor: theme.primary, padding: 14, borderRadius: 8, alignItems: 'center', opacity: submittingReview ? 0.7 : 1 }}>
-              <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>{submittingReview ? "Submitting..." : "Submit Review"}</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity onPress={() => setReviewModalVisible(false)} style={{ marginTop: 15, alignSelf: 'center' }}>
-              <Text style={{ color: theme.tabIconDefault, fontWeight: '600' }}>Skip for now</Text>
-            </TouchableOpacity>
+              <TouchableOpacity disabled={submittingReview} onPress={submitReview} style={{ backgroundColor: theme.primary, padding: 14, borderRadius: 8, alignItems: 'center', opacity: submittingReview ? 0.7 : 1 }}>
+                <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>{submittingReview ? "Submitting..." : "Submit Review"}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity onPress={() => setReviewModalVisible(false)} style={{ marginTop: 15, alignSelf: 'center' }}>
+                <Text style={{ color: theme.tabIconDefault, fontWeight: '600' }}>Skip for now</Text>
+              </TouchableOpacity>
 
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={reportModalVisible} animationType="slide" transparent={true}>
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <View style={{ backgroundColor: theme.card, padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '60%' }}>
-            
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.text }}>Report Issue</Text>
-              <TouchableOpacity onPress={() => setReportModalVisible(false)}>
-                <Text style={{ color: theme.tabIconDefault, fontSize: 16 }}>Cancel</Text>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <View style={{ backgroundColor: theme.card, padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '60%' }}>
+              
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.text }}>Report Issue</Text>
+                <TouchableOpacity onPress={() => setReportModalVisible(false)}>
+                  <Text style={{ color: theme.tabIconDefault, fontSize: 16 }}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={{ color: theme.text, marginBottom: 10, fontWeight: '600' }}>What is the problem?</Text>
+              
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+                {['Ticket Not Received', 'Fake/Invalid Ticket', 'Payment Issue', 'Other'].map((type) => (
+                  <TouchableOpacity 
+                    key={type}
+                    onPress={() => setIssueType(type)}
+                    style={{ 
+                      paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, 
+                      backgroundColor: issueType === type ? theme.text : theme.icon 
+                    }}>
+                    <Text style={{ color: issueType === type ? theme.tint : theme.text }}>{type}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={{ color: theme.text, marginBottom: 10, fontWeight: '600' }}>Details</Text>
+              <TextInput
+                style={{
+                  backgroundColor: theme.tint, color: theme.text,
+                  borderRadius: 10, padding: 15, height: 120, textAlignVertical: 'top', marginBottom: 20
+                }}
+                placeholder="Explain what happened..."
+                placeholderTextColor={theme.tabIconDefault}
+                multiline
+                value={userMessage}
+                onChangeText={setUserMessage}
+              />
+
+              <TouchableOpacity disabled={submittingReport} onPress={submitDispute} style={{ backgroundColor: theme.error, padding: 14, borderRadius: 8, alignItems: 'center', opacity: submittingReport ? 0.7 : 1 }}>
+                <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>{submittingReport ? "Submitting..." : "Submit Issue"}</Text>
               </TouchableOpacity>
             </View>
-
-            <Text style={{ color: theme.text, marginBottom: 10, fontWeight: '600' }}>What is the problem?</Text>
-            
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
-              {['Ticket Not Received', 'Fake/Invalid Ticket', 'Payment Issue', 'Other'].map((type) => (
-                <TouchableOpacity 
-                  key={type}
-                  onPress={() => setIssueType(type)}
-                  style={{ 
-                    paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, 
-                    backgroundColor: issueType === type ? theme.text : theme.icon 
-                  }}>
-                  <Text style={{ color: issueType === type ? theme.tint : theme.text }}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={{ color: theme.text, marginBottom: 10, fontWeight: '600' }}>Details</Text>
-            <TextInput
-              style={{
-                backgroundColor: theme.tint, color: theme.text,
-                borderRadius: 10, padding: 15, height: 120, textAlignVertical: 'top', marginBottom: 20
-              }}
-              placeholder="Explain what happened..."
-              placeholderTextColor={theme.tabIconDefault}
-              multiline
-              value={userMessage}
-              onChangeText={setUserMessage}
-            />
-
-            <TouchableOpacity disabled={submittingReport} onPress={submitDispute} style={{ backgroundColor: theme.error, padding: 14, borderRadius: 8, alignItems: 'center', opacity: submittingReport ? 0.7 : 1 }}>
-              <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>{submittingReport ? "Submitting..." : "Submit Issue"}</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={editModalVisible} animationType="slide" transparent={true}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <View style={{ backgroundColor: theme.card, padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, minHeight: '30%' }}>
+              
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.text }}>Edit Price</Text>
+                <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                  <Text style={{ color: theme.tabIconDefault, fontSize: 16 }}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={{ fontSize: 24, color: theme.text, marginRight: 8, fontWeight: '700' }}>€</Text>
+                <TextInput
+                  style={{
+                    flex: 1, backgroundColor: theme.tint, color: theme.text,
+                    borderRadius: 10, padding: 15, fontSize: 18
+                  }}
+                  placeholder="0.00"
+                  placeholderTextColor={theme.tabIconDefault}
+                  keyboardType="numeric"
+                  value={newPrice}
+                  onChangeText={setNewPrice}
+                  autoFocus
+                />
+              </View>
+
+              <TouchableOpacity 
+                disabled={updatingPrice} 
+                onPress={handleUpdatePrice} 
+                style={{ backgroundColor: theme.text, padding: 14, borderRadius: 8, alignItems: 'center', opacity: updatingPrice ? 0.7 : 1 }}
+              >
+                <Text style={{ color: theme.background, fontWeight: '700', fontSize: 16 }}>
+                  {updatingPrice ? "Saving..." : "Save Changes"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
     </ScrollView>

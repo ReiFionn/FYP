@@ -1,5 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+const getOptimalImage = (images: any[], targetWidth: number = 300) => {
+  if (!images || images.length === 0) return null;
+  
+  const optimalImage = images.reduce((prev, curr) => {
+    return (Math.abs(curr.width - targetWidth) < Math.abs(prev.width - targetWidth) ? curr : prev);
+  });
+  
+  return optimalImage.url;
+};
+
 serve(async (req) => {
   const { artistName } = await req.json();
 
@@ -22,8 +32,9 @@ serve(async (req) => {
     });
     const tokenData = await tokenResponse.json();
     const token = tokenData.access_token;
-
+    
     const query = encodeURIComponent(artistName);
+    
     const searchResponse = await fetch(`https://api.spotify.com/v1/search?q=${query}&type=artist&limit=1`, {
       method: 'GET',
       headers: {
@@ -31,14 +42,14 @@ serve(async (req) => {
       },
     });
     const searchData = await searchResponse.json();
-    
-    const imageUrl = searchData.artists?.items[0]?.images[0]?.url || null;
+    const images = searchData.artists?.items[0]?.images;
+    const imageUrl = getOptimalImage(images, 300);
 
     return new Response(JSON.stringify({ imageUrl }), {
       headers: { 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
-})
+});
