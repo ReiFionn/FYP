@@ -55,8 +55,12 @@ export default function Settings() {
         try {
             const returnUrl = Linking.createURL('/'); 
 
+            const stripeReturnUrl = returnUrl.includes('exp://') || returnUrl.includes('192.168')
+                ? 'https://google.com' // has to be added because it bugs while using Expo, would work in production
+                : returnUrl;
+
             const { data, error } = await supabase.functions.invoke('stripe-connect', {
-            body: { returnUrl }
+                body: { returnUrl: stripeReturnUrl }
             });
 
             if (error || !data?.url) throw error;

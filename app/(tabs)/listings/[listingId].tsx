@@ -153,6 +153,22 @@ export default function ListingDetails() {
     setLoadingPayment(false);
 
     if (success) {
+      const { data: convId } = await supabase.rpc("get_or_create_dm", { other_user: listing.seller_id });
+
+      if (convId) {
+        await supabase.from("conversation_messages").insert({
+          conversation_id: convId,
+          sender_id: buyerId,
+          message_type: 'system',
+          body: JSON.stringify({ 
+            text: "Payment secured in escrow. Awaiting ticket transfer.", 
+            listingId: listing.id,
+            actionText: "View Transaction",
+            actionUserId: null 
+          })
+        });
+      }
+
       Alert.alert(
         "Payment Successful!", 
         "Your money is safe in escrow. We just notified the seller to transfer the ticket to you. Once you receive it, confirm receipt here once it arrives.",
@@ -162,6 +178,8 @@ export default function ListingDetails() {
   };
 
   const handleConfirmReceipt = async () => {
+    if (!listing) return
+
     Alert.alert(
       "Confirm Receipt",
       "Are you sure you have received the ticket? This will immediately release the funds to the seller.",
@@ -182,6 +200,21 @@ export default function ListingDetails() {
               Alert.alert("Payout Error", data?.error || error.message);
             } else {
               setReviewModalVisible(true);
+
+              const { data: convId } = await supabase.rpc("get_or_create_dm", { other_user: listing?.seller_id });
+              if (convId) {
+                await supabase.from("conversation_messages").insert({
+                  conversation_id: convId,
+                  sender_id: buyerId,
+                  message_type: 'system',
+                  body: JSON.stringify({ 
+                    text: "Ticket transferred successfully. Escrow released.", 
+                    listingId: listing.id,
+                    actionText: "Rate Transaction",
+                    actionUserId: null 
+                  })
+                });
+              }
             }
           }
         }
@@ -190,6 +223,8 @@ export default function ListingDetails() {
   };
 
   const handleConfirmSent = async () => {
+    if (!listing) return;
+    
     Alert.alert(
       "Confirm Transfer",
       "Are you sure you have transferred the ticket to the buyer?",
@@ -199,6 +234,22 @@ export default function ListingDetails() {
           text: "Yes, I sent it", 
           style: "default",
           onPress: async () => {
+            const { data: convId } = await supabase.rpc("get_or_create_dm", { other_user: listing?.active_buyer_id });
+
+            if (convId) {
+              await supabase.from("conversation_messages").insert({
+                conversation_id: convId,
+                sender_id: buyerId,
+                message_type: 'system',
+                body: JSON.stringify({ 
+                  text: "Seller has transferred the ticket. Please confirm receipt.", 
+                  listingId: listing.id,
+                  actionText: "Confirm Receipt",
+                  actionUserId: listing.active_buyer_id 
+                })
+              });
+            }
+
             setListing(prev => prev ? { ...prev, ticket_sent: true } : null);
 
             const { error } = await supabase

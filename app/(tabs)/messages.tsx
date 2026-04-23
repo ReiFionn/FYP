@@ -67,14 +67,17 @@ export default function Users() {
           : null;
 
         if (lastMsg) {
-          if (lastMsg.message_type === 'offer') {
+          if (lastMsg.message_type === 'system') {
+            try {
+              const parsed = JSON.parse(lastMsg.body);
+              lastMessageText = `System: ${parsed.text}`;
+            } catch (e) {}
+          } else if (lastMsg.message_type === 'offer') {
             let title = 'an item';
             try {
               const parsed = JSON.parse(lastMsg.body);
               if (parsed.listingTitle) title = parsed.listingTitle;
-            } catch (e) {
-              
-            }
+            } catch (e) {}
             lastMessageText = `Offer sent for ${title} (€${lastMsg.offer_amount})`;
           } else {
             lastMessageText = lastMsg.body;

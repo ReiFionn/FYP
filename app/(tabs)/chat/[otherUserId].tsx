@@ -179,7 +179,7 @@ export default function Chat() {
 
     const { data: listing, error: fetchError } = await supabase
       .from('listings')
-      .select('status')
+      .select('status, seller_id')
       .eq('id', itemListingId)
       .single();
 
@@ -188,7 +188,25 @@ export default function Chat() {
       return Alert.alert("Unavailable", "This ticket has already been sold.");
     }
     
-    await processCheckout(itemListingId, myId, messageId);
+    const checkoutSuccess = await processCheckout(itemListingId, myId, messageId);
+
+    if (checkoutSuccess) {
+      const { data: convId } = await supabase.rpc("get_or_create_dm", { other_user: listing.seller_id });
+      
+      if (convId) {
+        await supabase.from("conversation_messages").insert({
+          conversation_id: convId,
+          sender_id: myId,
+          message_type: 'system',
+          body: JSON.stringify({ 
+            text: "Payment secured in escrow. Awaiting ticket transfer.", 
+            listingId: itemListingId,
+            actionText: "View Transaction",
+            actionUserId: null 
+          })
+        });
+      }
+    }
   }
 
   const formatTime = (dateString: string) => new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -220,30 +238,32 @@ export default function Chat() {
           const isMe = item.sender_id === myId;
 
           if (item.message_type === 'system') {
+            let sysText = item.body;
+            let targetListingId = listingId;
+            let buttonText = "View Transaction";
+            let actionUserId = null;
+            try {
+              const parsed = JSON.parse(item.body);
+              if (parsed.text) {
+                sysText = parsed.text;
+                targetListingId = parsed.listingId || targetListingId;
+                actionUserId = parsed.actionUserId; 
+                if (parsed.actionText) buttonText = parsed.actionText;
+              }
+            } catch (e) {}
+
+            const showButton = targetListingId && (!actionUserId || actionUserId === myId);
+
             return (
-              <View 
-                key={item.id} 
-                style={{ 
-                  alignSelf: 'center', 
-                  width: '85%', 
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                  borderWidth: 1,
-                  borderRadius: 12, 
-                  padding: 15, 
-                  marginVertical: 15, 
-                  alignItems: 'center' 
-                }}
-              >
-                <Text style={{ color: theme.text, fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>
-                  {item.body}
+              <View key={item.id} style={{ alignSelf: 'center', width: '85%', backgroundColor: theme.card, borderColor: theme.border, borderWidth: 1, borderRadius: 12, padding: 15, marginVertical: 15, alignItems: 'center' }}>
+                <Text style={{ color: theme.text, fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: showButton ? 10 : 0 }}>
+                  {sysText}
                 </Text>
-                <Pressable 
-                  onPress={() => router.push(`/listings/${listingId}`)} 
-                  style={{ backgroundColor: theme.primary, width: '100%', paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}
-                >
-                  <Text style={{ color: theme.tint, fontWeight: '700' }}>Rate Transaction</Text>
-                </Pressable>
+                {showButton && (
+                  <Pressable onPress={() => router.push(`/listings/${targetListingId}`)} style={{ backgroundColor: theme.primary, width: '100%', paddingVertical: 10, borderRadius: 8, alignItems: 'center' }}>
+                    <Text style={{ color: theme.tint, fontWeight: '700' }}>{buttonText}</Text>
+                  </Pressable>
+                )}
               </View>
             );
           }
