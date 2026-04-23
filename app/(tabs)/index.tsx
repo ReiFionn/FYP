@@ -139,14 +139,13 @@ export default function Index() {
   };
 
   const aiPriceColourLogic = (userPrice: number, aiPrice: number) => {
-    const aiPriceFive = aiPrice/100*5
-
-    if (userPrice >= aiPrice + (aiPriceFive*2))
-      aiPriceColour = Colors[colorScheme].error;
-    else if (userPrice >= aiPrice + aiPriceFive)
-      aiPriceColour = "#E2C28A"
-    else
-      aiPriceColour = "#A4CBB4"
+    const marginOrange = aiPrice * 0.10;
+    const marginRed = aiPrice * 0.25;
+    
+    if (userPrice >= aiPrice + marginRed) aiPriceColour = Colors[colorScheme].error;
+    if (userPrice >= aiPrice + marginOrange) aiPriceColour = "#E2C28A"
+    
+    aiPriceColour = "#A4CBB4"
   }
 
   const isToday = (dateString: string) => {

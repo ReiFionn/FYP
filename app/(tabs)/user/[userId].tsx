@@ -20,6 +20,18 @@ type Item = {
     ai_suggested_price?: number;
 };
 
+type Review = {
+    id: string;
+    reviewer_id: string;
+    rating: number;
+    comment: string | null;
+    created_at: string;
+    profiles?: {
+        display_name: string;
+        picture_url: string | null;
+    };
+};
+
 export default function UserProfile() {
     const { userId } = useLocalSearchParams<{ userId: string }>();
     const colorScheme = useColorScheme() ?? 'light';
@@ -27,8 +39,11 @@ export default function UserProfile() {
 
     const [profile, setProfile] = useState<Profile | null>(null);
     const [listings, setListings] = useState<Item[]>([]);
+    const [reviews, setReviews] = useState<Review[]>([]);
+    
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [activeTab, setActiveTab] = useState<'listings' | 'reviews'>('listings');
 
     useEffect(() => {
         fetchData();
@@ -42,25 +57,24 @@ export default function UserProfile() {
 
     const fetchData = async () => {
         if (!userId) {
-        setLoading(false);
-        return;
+            setLoading(false);
+            return;
         }
 
         try {
-        const [profileRes, listingsRes] = await Promise.all([
-            supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-            supabase.from('listings').select('*, events(title, start_time, venue_name, city)').eq('seller_id', userId).eq('status', 'active')
-        ]);
+            const [profileRes, listingsRes, reviewsRes] = await Promise.all([
+                supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+                supabase.from('listings').select('*, events(title, start_time, venue_name, city)').eq('seller_id', userId).eq('status', 'active'),
+                supabase.from('reviews').select('id, reviewer_id, rating, comment, created_at, profiles!reviews_reviewer_id_fkey(display_name, picture_url)').eq('reviewee_id', userId).order('created_at', { ascending: false })
+            ]);
 
-        if (profileRes.error) console.error("Profile Error:", profileRes.error.message);
-        if (listingsRes.error) console.error("Listings Error:", listingsRes.error.message);
-
-        if (profileRes.data) setProfile(profileRes.data);
-        if (listingsRes.data) setListings(listingsRes.data);
+            if (profileRes.data) setProfile(profileRes.data);
+            if (listingsRes.data) setListings(listingsRes.data);
+            if (reviewsRes.data) setReviews(reviewsRes.data as unknown as Review[]);
         } catch (error) {
-        console.error("Error fetching data:", error);
+            console.error("Error fetching data:", error);
         } finally {
-        setLoading(false);
+            setLoading(false);
         }
     };
 
@@ -83,39 +97,52 @@ export default function UserProfile() {
 
     const renderItemCard = (item: Item) => {
         const cardPriceColour = getAiPriceColour(item.listing_price, item.ai_suggested_price);
-
         return (
-        <TouchableOpacity
-            key={item.id}
-            onPress={() => router.push(`/listings/${item.id}`)}
-            style={{
-            backgroundColor: theme.background,
-            borderWidth: 1,
-            borderColor: theme.icon,
-            borderRadius: 16,
-            marginBottom: 16,
-            overflow: "hidden",
-            }}
-        >
+        <TouchableOpacity key={item.id} onPress={() => router.push(`/listings/${item.id}`)} style={{ backgroundColor: theme.background, borderWidth: 1, borderColor: theme.icon, borderRadius: 16, marginBottom: 16, overflow: "hidden" }}>
             <View style={{ padding: 12 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <Text style={{ fontSize: 16, fontWeight: "700", color: theme.text, flex: 1, marginRight: 8 }}>
-                {item.events?.title || 'Unknown Event'}
-                </Text>
-                <Text style={{ fontSize: 16, fontWeight: "700", color: cardPriceColour }}>
-                €{item.listing_price}
-                </Text>
+                <Text style={{ fontSize: 16, fontWeight: "700", color: theme.text, flex: 1, marginRight: 8 }}>{item.events?.title || 'Unknown Event'}</Text>
+                <Text style={{ fontSize: 16, fontWeight: "700", color: cardPriceColour }}>€{item.listing_price}</Text>
             </View>
-
             <View style={{ marginTop: 6 }}>
-                <Text style={{ color: theme.tabIconDefault, fontSize: 14 }}>
-                {item.events?.start_time ? new Date(item.events.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' }) : ''} • {item.events?.venue_name}
-                </Text>
-                <Text style={{ color: theme.tabIconDefault, fontSize: 12, marginTop: 4 }}>
-                {item.events?.city}
-                </Text>
+                <Text style={{ color: theme.tabIconDefault, fontSize: 14 }}>{item.events?.start_time ? new Date(item.events.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' }) : ''} • {item.events?.venue_name}</Text>
+                <Text style={{ color: theme.tabIconDefault, fontSize: 12, marginTop: 4 }}>{item.events?.city}</Text>
             </View>
             </View>
+        </TouchableOpacity>
+        );
+    };
+
+    const renderReviewCard = (review: Review) => {
+        return (
+        <TouchableOpacity 
+            key={review.id} 
+            onPress={() => router.push(`/user/${review.reviewer_id}`)}
+            style={{ backgroundColor: theme.background, borderWidth: 1, borderColor: theme.icon, borderRadius: 16, marginBottom: 16, padding: 16 }}
+        >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Image 
+                source={{ uri: review.profiles?.picture_url || 'https://cdn.vectorstock.com/i/500p/08/19/gray-human-icon-profile-placeholder-vector-35850819.jpg' }} 
+                style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12, backgroundColor: theme.icon }} 
+            />
+            <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>
+                {review.profiles?.display_name || 'Unknown User'}
+                </Text>
+                <Text style={{ color: theme.tint, letterSpacing: 2, fontSize: 14 }}>
+                {renderStars(review.rating)} <Text style={{ color: theme.tabIconDefault, fontSize: 12, letterSpacing: 0 }}>({Number(review.rating).toFixed(1)}/5)</Text>
+                </Text>
+            </View>
+            <Text style={{ color: theme.tabIconDefault, fontSize: 12 }}>
+                {new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </Text>
+            </View>
+            
+            {review.comment && review.comment.trim() !== "" && (
+            <Text style={{ color: theme.text, fontSize: 14, marginTop: 4, lineHeight: 20 }}>
+                {review.comment}
+            </Text>
+            )}
         </TouchableOpacity>
         );
     };
@@ -124,29 +151,31 @@ export default function UserProfile() {
     if (!profile) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }}><Text style={{ color: theme.text }}>User not found.</Text></View>;
 
     return (
-        <ScrollView 
-        style={{ flex: 1, backgroundColor: theme.background }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}
-        >
+        <ScrollView style={{ flex: 1, backgroundColor: theme.background }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.primary} />}>
         <View style={{ alignItems: 'center', paddingVertical: 30, borderBottomWidth: 1, borderBottomColor: theme.icon }}>
-            <Image
-            source={{ uri: profile?.picture_url || 'https://cdn.vectorstock.com/i/500p/08/19/gray-human-icon-profile-placeholder-vector-35850819.jpg' }}
-            style={{ width: 100, height: 100, borderRadius: 50, marginBottom: 12, borderWidth: 2, borderColor: theme.icon, backgroundColor: theme.background }}
-            />
-            <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 4, color: theme.text }}>
-            {profile?.display_name}
-            </Text>
+            <Image source={{ uri: profile?.picture_url || 'https://cdn.vectorstock.com/i/500p/08/19/gray-human-icon-profile-placeholder-vector-35850819.jpg' }} style={{ width: 100, height: 100, borderRadius: 50, marginBottom: 12, borderWidth: 2, borderColor: theme.icon, backgroundColor: theme.background }} />
+            <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 4, color: theme.text }}>{profile?.display_name}</Text>
             <Text style={{ fontSize: 18, letterSpacing: 2, color: theme.text }}>
             {renderStars(profile?.trust_rating || 0)} <Text style={{ color: theme.tabIconDefault, fontSize: 14, letterSpacing: 0 }}>({Number(profile?.trust_rating || 0).toFixed(1)}/5)</Text>
             </Text>
         </View>
 
+        <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 20, borderBottomWidth: 1, borderColor: theme.icon }}>
+            <TouchableOpacity onPress={() => setActiveTab('listings')} style={{ flex: 1, paddingBottom: 12, borderBottomWidth: activeTab === 'listings' ? 2 : 0, borderColor: theme.text }}>
+            <Text style={{ textAlign: 'center', fontWeight: '700', color: activeTab === 'listings' ? theme.text : theme.tabIconDefault }}>Listings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setActiveTab('reviews')} style={{ flex: 1, paddingBottom: 12, borderBottomWidth: activeTab === 'reviews' ? 2 : 0, borderColor: theme.text }}>
+            <Text style={{ textAlign: 'center', fontWeight: '700', color: activeTab === 'reviews' ? theme.text : theme.tabIconDefault }}>Reviews</Text>
+            </TouchableOpacity>
+        </View>
+
         <View style={{ padding: 20 }}>
-            <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 16, color: theme.text }}>Current Listings</Text>
-            {listings.length > 0 ? (
-            listings.map(item => renderItemCard(item))
-            ) : (
-            <Text style={{ color: theme.tabIconDefault }}>No active listings.</Text>
+            {activeTab === 'listings' && (
+            listings.length > 0 ? listings.map(item => renderItemCard(item)) : <Text style={{ color: theme.tabIconDefault, textAlign: 'center', marginTop: 20 }}>No active listings.</Text>
+            )}
+
+            {activeTab === 'reviews' && (
+            reviews.length > 0 ? reviews.map(review => renderReviewCard(review)) : <Text style={{ color: theme.tabIconDefault, textAlign: 'center', marginTop: 20 }}>No reviews yet.</Text>
             )}
         </View>
         </ScrollView>

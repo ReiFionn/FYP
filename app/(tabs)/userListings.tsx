@@ -54,11 +54,14 @@ export default function UserListings() {
     };
 
     const getAiPriceColour = (userPrice?: number, aiPrice?: number) => {
-        if (userPrice === undefined || aiPrice === undefined) return "#A4CBB4"; 
-        const aiPriceFive = (aiPrice / 100) * 5;
+        if (userPrice === undefined || aiPrice === undefined) return "#A4CBB4";
         
-        if (userPrice >= aiPrice + (aiPriceFive * 2)) return theme.error;
-        if (userPrice >= aiPrice + aiPriceFive) return "#E2C28A";
+        const marginOrange = aiPrice * 0.10;
+        const marginRed = aiPrice * 0.25;
+        
+        if (userPrice >= aiPrice + marginRed) return theme.error;
+        if (userPrice >= aiPrice + marginOrange) return "#E2C28A";
+        
         return "#A4CBB4";
     };
 
@@ -97,6 +100,7 @@ export default function UserListings() {
                                 borderRadius: 16,
                                 marginBottom: 16,
                                 overflow: "hidden",
+                                opacity: listing.status === 'expired' ? 0.7 : 1
                             }}
                         >
                             <View style={{ padding: 12 }}>
@@ -125,6 +129,9 @@ export default function UserListings() {
                                         )}
                                         {listing.status === 'pending' && (
                                             <Text style={{ color: theme.tint, backgroundColor: '#E2C28A', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Pending</Text>
+                                        )}
+                                        {listing.status === 'expired' && (
+                                            <Text style={{ color: theme.background, backgroundColor: theme.text, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Expired</Text>
                                         )}
                                         {listing.status === 'sold' && !listing.ticket_sent && (
                                             <Text style={{ color: theme.tint, backgroundColor: theme.error, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, fontWeight: '700', overflow: 'hidden', fontSize: 12 }}>Needs Transfer</Text>

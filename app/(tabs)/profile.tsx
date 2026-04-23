@@ -22,6 +22,18 @@ type Item = {
   ai_suggested_price?: number;
 };
 
+type Review = {
+  id: string;
+  reviewer_id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  profiles?: {
+    display_name: string;
+    picture_url: string | null;
+  };
+};
+
 export default function Profile() {
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
@@ -30,6 +42,8 @@ export default function Profile() {
   const [purchases, setPurchases] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [activeTab, setActiveTab] = useState<'listings' | 'purchases' | 'reviews'>('listings');
 
   useEffect(() => {
     fetchUserData();
@@ -46,15 +60,18 @@ export default function Profile() {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) return;
 
-      const [profile, listings, purchases] = await Promise.all([
+      const [profile, listings, purchases, reviews] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', user.id).single(),
         supabase.from('listings').select('*, events(title, start_time, venue_name, city)').eq('seller_id', user.id).neq('status', 'sold'),
-        supabase.from('listings').select('*, events(title, start_time, venue_name, city)').eq('active_buyer_id', user.id)
+        supabase.from('listings').select('*, events(title, start_time, venue_name, city)').eq('active_buyer_id', user.id),
+        supabase.from('reviews').select('id, reviewer_id, rating, comment, created_at, profiles!reviews_reviewer_id_fkey(display_name, picture_url)').eq('reviewee_id', user.id).order('created_at', { ascending: false })
       ]);
 
       if (profile.data) setProfile(profile.data);
       if (listings.data) setListings(listings.data);
       if (purchases.data) setPurchases(purchases.data);
+      if (reviews.data) setReviews(reviews.data as unknown as Review[]);
+
       console.log(purchases)
       console.log(user.id)
     } catch (error) {
@@ -66,9 +83,7 @@ export default function Profile() {
 
   const renderStars = (rating: number) => {
     const safeRating = Math.max(0, Math.min(5, Number(rating) || 0));
-    
     const thresholdRating = Math.floor(safeRating * 2) / 2;
-    
     const fullStars = Math.floor(thresholdRating);
     const hasHalfStar = thresholdRating % 1 !== 0;
     const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
@@ -78,52 +93,66 @@ export default function Profile() {
 
   const getAiPriceColour = (userPrice?: number, aiPrice?: number) => {
     if (userPrice === undefined || aiPrice === undefined) return "#A4CBB4";
-    const aiPriceFive = (aiPrice / 100) * 5;
     
-    if (userPrice >= aiPrice + (aiPriceFive * 2)) return theme.error;
-    if (userPrice >= aiPrice + aiPriceFive) return "#E2C28A";
+    const marginOrange = aiPrice * 0.10;
+    const marginRed = aiPrice * 0.25;
+    
+    if (userPrice >= aiPrice + marginRed) return theme.error;
+    if (userPrice >= aiPrice + marginOrange) return "#E2C28A";
+    
     return "#A4CBB4";
   };
 
   const renderItemCard = (item: Item, type: 'Listing' | 'Purchase') => {
     const cardPriceColour = getAiPriceColour(item.listing_price, item.ai_suggested_price);
-
-    return(
-      <TouchableOpacity
-        key={item.id}
-        onPress={() => router.push(`/listings/${item.id}`)}
-        style={{
-          backgroundColor: theme.background,
-          borderWidth: 1,
-          borderColor: theme.icon,
-          borderRadius: 16,
-          marginBottom: 16,
-          overflow: "hidden",
-        }}
-      >
+    return (
+      <TouchableOpacity key={item.id} onPress={() => router.push(`/listings/${item.id}`)} style={{ backgroundColor: theme.background, borderWidth: 1, borderColor: theme.icon, borderRadius: 16, marginBottom: 16, overflow: "hidden" }}>
         <View style={{ padding: 12 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <Text style={{ fontSize: 16, fontWeight: "700", color: theme.text, flex: 1, marginRight: 8 }}>
-              {item.events?.title || 'Unknown Event'}
-            </Text>
-            {type === 'Listing' && (
-              <Text style={{ fontSize: 16, fontWeight: "700", color: cardPriceColour }}>
-                €{item.listing_price}
-              </Text>
-            )}
+            <Text style={{ fontSize: 16, fontWeight: "700", color: theme.text, flex: 1, marginRight: 8 }}>{item.events?.title || 'Unknown Event'}</Text>
+            {type === 'Listing' && <Text style={{ fontSize: 16, fontWeight: "700", color: cardPriceColour }}>€{item.listing_price}</Text>}
           </View>
-
           <View style={{ marginTop: 6 }}>
-            <Text style={{ color: theme.tabIconDefault, fontSize: 14 }}>
-              {item.events?.start_time ? new Date(item.events.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' }) : ''} • {item.events?.venue_name}
-            </Text>
-            <Text style={{ color: theme.tabIconDefault, fontSize: 12, marginTop: 4 }}>
-              {item.events?.city}
-            </Text>
+            <Text style={{ color: theme.tabIconDefault, fontSize: 14 }}>{item.events?.start_time ? new Date(item.events.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' }) : ''} • {item.events?.venue_name}</Text>
+            <Text style={{ color: theme.tabIconDefault, fontSize: 12, marginTop: 4 }}>{item.events?.city}</Text>
           </View>
         </View>
       </TouchableOpacity>
     )
+  };
+
+  const renderReviewCard = (review: Review) => {
+    return (
+      <TouchableOpacity 
+        key={review.id} 
+        onPress={() => router.push(`/user/${review.reviewer_id}`)}
+        style={{ backgroundColor: theme.background, borderWidth: 1, borderColor: theme.icon, borderRadius: 16, marginBottom: 16, padding: 16 }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+          <Image 
+            source={{ uri: review.profiles?.picture_url || 'https://cdn.vectorstock.com/i/500p/08/19/gray-human-icon-profile-placeholder-vector-35850819.jpg' }} 
+            style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12, backgroundColor: theme.icon }} 
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>
+              {review.profiles?.display_name || 'Unknown User'}
+            </Text>
+            <Text style={{ color: theme.tint, letterSpacing: 2, fontSize: 14 }}>
+              {renderStars(review.rating)} <Text style={{ color: theme.tabIconDefault, fontSize: 12, letterSpacing: 0 }}>({Number(review.rating).toFixed(1)}/5)</Text>
+            </Text>
+          </View>
+          <Text style={{ color: theme.tabIconDefault, fontSize: 12 }}>
+            {new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          </Text>
+        </View>
+        
+        {review.comment && review.comment.trim() !== "" && (
+          <Text style={{ color: theme.text, fontSize: 14, marginTop: 4, lineHeight: 20 }}>
+            {review.comment}
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
   };
 
   const handlePicturePress = () => {
@@ -274,40 +303,34 @@ export default function Profile() {
         </Text>
       </TouchableOpacity>
 
-      <View style={{padding: 20}}>
-        <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 16 , color: theme.text }}>Current Listings</Text>
-        {listings.length > 0 ? (
-          listings.map(item => renderItemCard(item, 'Listing'))
-        ) : (
-          <Text style={{ color: theme.tabIconDefault }}>No active listings.</Text>
+      <View style={{ flexDirection: 'row', marginHorizontal: 20, marginTop: 30, borderBottomWidth: 1, borderColor: theme.icon }}>
+        <TouchableOpacity onPress={() => setActiveTab('listings')} style={{ flex: 1, paddingBottom: 12, borderBottomWidth: activeTab === 'listings' ? 2 : 0, borderColor: theme.text }}>
+          <Text style={{ textAlign: 'center', fontWeight: '700', color: activeTab === 'listings' ? theme.text : theme.tabIconDefault }}>Listings</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setActiveTab('purchases')} style={{ flex: 1, paddingBottom: 12, borderBottomWidth: activeTab === 'purchases' ? 2 : 0, borderColor: theme.text }}>
+          <Text style={{ textAlign: 'center', fontWeight: '700', color: activeTab === 'purchases' ? theme.text : theme.tabIconDefault }}>Purchases</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setActiveTab('reviews')} style={{ flex: 1, paddingBottom: 12, borderBottomWidth: activeTab === 'reviews' ? 2 : 0, borderColor: theme.text }}>
+          <Text style={{ textAlign: 'center', fontWeight: '700', color: activeTab === 'reviews' ? theme.text : theme.tabIconDefault }}>Reviews</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ padding: 20 }}>
+        {activeTab === 'listings' && (
+          listings.length > 0 ? listings.map(item => renderItemCard(item, 'Listing')) : <Text style={{ color: theme.tabIconDefault, textAlign: 'center', marginTop: 20 }}>No active listings.</Text>
+        )}
+        
+        {activeTab === 'purchases' && (
+          purchases.length > 0 ? purchases.map(item => renderItemCard(item, 'Purchase')) : <Text style={{ color: theme.tabIconDefault, textAlign: 'center', marginTop: 20 }}>No past purchases.</Text>
+        )}
+
+        {activeTab === 'reviews' && (
+          reviews.length > 0 ? reviews.map(review => renderReviewCard(review)) : <Text style={{ color: theme.tabIconDefault, textAlign: 'center', marginTop: 20 }}>No reviews yet.</Text>
         )}
       </View>
 
-      <View style={{padding: 20}}>
-        <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 16 , color: theme.text }}>Past Purchases</Text>
-        {purchases.length > 0 ? (
-          purchases.map(item => renderItemCard(item, 'Purchase'))
-        ) : (
-          <Text style={{ color: theme.tabIconDefault }}>No past purchases.</Text>
-        )}
-      </View>
-      <TouchableOpacity 
-        onPress={handleLogout} 
-        style={{ 
-          padding: 16, 
-          marginHorizontal: 20, 
-          marginBottom: 40, 
-          borderWidth: 1, 
-          borderRadius: 8, 
-          alignItems: 'center',
-          borderColor: theme.icon 
-        }}
-      >
-        <Text style={{ 
-          color: theme.error, 
-          fontSize: 16, 
-          fontWeight: '700' 
-        }}>Log Out</Text>
+      <TouchableOpacity onPress={handleLogout} style={{ padding: 16, marginHorizontal: 20, marginBottom: 40, borderWidth: 1, borderRadius: 8, alignItems: 'center', borderColor: theme.icon }}>
+        <Text style={{ color: theme.error, fontSize: 16, fontWeight: '700' }}>Log Out</Text>
       </TouchableOpacity>
     </ScrollView>
   );

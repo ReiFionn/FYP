@@ -114,6 +114,19 @@ Deno.serve(async (req) => {
       metadata: { listingId: listingId, buyerId: buyerId, offerId: offerId || 'none' },
     });
 
+    const { error: updateError } = await supabaseAdmin
+      .from('listings')
+      .update({ payment_intent_id: paymentIntent.id })
+      .eq('id', listingId);
+
+    if (updateError) {
+      console.error("Failed to save payment_intent_id:", updateError);
+      return new Response(JSON.stringify({ error: "Failed to initialise secure checkout" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(
       JSON.stringify({
         paymentIntent: paymentIntent.client_secret,
@@ -124,6 +137,7 @@ Deno.serve(async (req) => {
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+    
   } catch (error: any) {
     console.error("Stripe error:", error);
     return new Response(JSON.stringify({ error: error.message }), {
