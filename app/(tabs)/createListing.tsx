@@ -4,13 +4,71 @@ import { useGemini } from '@/hooks/useGemini';
 import { supabase } from '@/lib/supabase';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 
 export default function CreateListingTest() {
+  const [isAllowed, setIsAllowed] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const checkStripeConnection = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !isActive) return;
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('stripe_account_id')
+          .eq('id', user.id)
+          .single();
+
+        if (!profile?.stripe_account_id) {
+          return blockUser("Set Up Payouts");
+        }
+
+        const { data: statusData, error } = await supabase.functions.invoke('check-stripe-status', {
+          body: { accountId: profile.stripe_account_id }
+        });
+
+        if (error || !statusData?.isComplete) {
+          return blockUser("Finish Setup");
+        }
+
+        if (isActive) setIsAllowed(true);
+      };
+
+      const blockUser = (actionText: string) => {
+        if (!isActive) return;
+        setIsAllowed(false);
+        Alert.alert(
+          "Payouts Not Configured",
+          "You must complete your Stripe bank connection to receive funds before you can sell tickets.",
+          [
+            { text: "Cancel", style: "cancel", onPress: () => router.back() },
+            { text: actionText, onPress: () => router.push('/userSettings') } 
+          ]
+        );
+      };
+
+      checkStripeConnection();
+
+      return () => { isActive = false; };
+    }, [])
+  );
+
+  if (!isAllowed) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   const colorScheme = useColorScheme() ?? 'light';
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');

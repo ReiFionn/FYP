@@ -13,6 +13,8 @@ export default function Settings() {
     const [saving, setSaving] = useState(false);
     const [displayName, setDisplayName] = useState('');
     const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+    const [connectingStripe, setConnectingStripe] = useState(false);
+    const [payoutsReady, setPayoutsReady] = useState(false);
 
     useEffect(() => {
         fetchProfile();
@@ -23,17 +25,26 @@ export default function Settings() {
         if (!user) return;
 
         const { data } = await supabase
-        .from('profiles')
-        .select('display_name, stripe_account_id')
-        .eq('id', user.id)
-        .single();
+            .from('profiles')
+            .select('display_name, stripe_account_id')
+            .eq('id', user.id)
+            .single();
 
-        if (data) {
-        setDisplayName(data.display_name || '');
-        setStripeAccountId(data.stripe_account_id);
-        }
-        setLoading(false);
-    };
+            if (data) {
+                setDisplayName(data.display_name || '');
+                setStripeAccountId(data.stripe_account_id);
+
+                if (data.stripe_account_id) {
+                    const { data: statusData } = await supabase.functions.invoke('check-stripe-status', {
+                    body: { accountId: data.stripe_account_id }
+                    });
+                    if (statusData?.isComplete) {
+                    setPayoutsReady(true);
+                    }
+                }
+            }
+            setLoading(false);
+        };
 
     const handleSaveProfile = async () => {
         setSaving(true);
@@ -52,9 +63,10 @@ export default function Settings() {
     };
 
     const handleConnectBank = async () => {
+        setConnectingStripe(true);
         try {
             const returnUrl = Linking.createURL('/'); 
-
+            
             const stripeReturnUrl = returnUrl.includes('exp://') || returnUrl.includes('192.168')
                 ? 'https://google.com' // has to be added because it bugs while using Expo, would work in production
                 : returnUrl;
@@ -68,13 +80,18 @@ export default function Settings() {
             const result = await WebBrowser.openAuthSessionAsync(data.url, returnUrl);
 
             if (result.type === 'success') {
-            console.log("Stripe onboarding complete!");
+                console.log("Stripe onboarding complete!");
             } else {
-            console.log("User cancelled the onboarding");
+                console.log("User closed the onboarding");
             }
+
+            await fetchProfile();
 
         } catch (error) {
             console.error("Stripe Onboarding Error:", error);
+            Alert.alert("Error", "Could not initiate Stripe connection.");
+        } finally {
+            setConnectingStripe(false);
         }
     };
 
@@ -119,15 +136,28 @@ export default function Settings() {
                 To receive money from sold tickets, you must connect a bank account via Stripe.
             </Text>
             
-            {stripeAccountId ? (
-            <Text style={{ color: theme.primary, fontWeight: 'bold' }}>Bank Account Connected!</Text>
+            {payoutsReady ? (
+                <Text style={{ color: theme.primary, fontWeight: 'bold' }}>Bank Account Connected!</Text>
             ) : (
-            <TouchableOpacity 
-                onPress={handleConnectBank}
-                style={{ backgroundColor: theme.text, padding: 12, borderRadius: 8, alignItems: 'center' }}
-            >
-                <Text style={{ color: theme.background, fontWeight: 'bold' }}>Set Up Payouts</Text>
-            </TouchableOpacity>
+                <TouchableOpacity 
+                    onPress={handleConnectBank}
+                    disabled={connectingStripe}
+                    style={{ 
+                        backgroundColor: theme.text, 
+                        padding: 12, 
+                        borderRadius: 8, 
+                        alignItems: 'center',
+                        opacity: connectingStripe ? 0.7 : 1
+                    }}
+                >
+                    {connectingStripe ? (
+                        <ActivityIndicator color={theme.background} size="small" />
+                    ) : (
+                        <Text style={{ color: theme.background, fontWeight: 'bold' }}>
+                            {stripeAccountId ? 'Finish Setup' : 'Set Up Payouts'}
+                        </Text>
+                    )}
+                </TouchableOpacity>
             )}
         </View>
         </ScrollView>
