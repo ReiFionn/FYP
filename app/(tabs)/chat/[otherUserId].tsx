@@ -3,7 +3,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useCheckout } from '@/hooks/useCheckout';
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../../lib/supabase";
 
 type Msg = { 
@@ -17,7 +17,7 @@ type Msg = {
   offer_status?: string;
 };
 
-type Profile = { id: string; email: string | null; display_name: string | null };
+type Profile = { id: string; email: string | null; display_name: string | null; picture_url?: string | null; };
 type ListingSummary = { id: string; listing_price: number; events: { title: string } };
 
 const getListingContext = (bodyStr: string) => {
@@ -81,7 +81,12 @@ export default function Chat() {
   }, [conversationId]);
 
   async function loadProfile() {
-    const { data } = await supabase.from("profiles").select("id,email,display_name").eq("id", otherUserId).single();
+    const { data } = await supabase
+      .from("profiles")
+      .select("id,email,display_name,picture_url") 
+      .eq("id", otherUserId)
+      .single();
+      
     if (data) setOtherProfile(data);
   }
 
@@ -190,9 +195,18 @@ export default function Chat() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: theme.background }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0} >
-      <View style={{ paddingVertical: 16, paddingHorizontal: 20, borderBottomWidth: StyleSheet.hairlineWidth, alignItems: 'center', borderBottomColor: theme.icon }}>
-        <Text style={{ fontSize: 18, fontWeight: "700", color: theme.text }}>{otherProfile?.display_name || "Loading..."}</Text>
-      </View>
+      <TouchableOpacity 
+        onPress={() => router.push(`../user/${otherUserId}`)}
+        style={{ paddingVertical: 12, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: theme.icon, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+      >
+        <Image 
+          source={{ uri: otherProfile?.picture_url || 'https://cdn.vectorstock.com/i/500p/08/19/gray-human-icon-profile-placeholder-vector-35850819.jpg' }} 
+          style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: theme.icon, backgroundColor: theme.background }} 
+        />
+        <Text style={{ fontSize: 18, fontWeight: "700", color: theme.text }}>
+          {otherProfile?.display_name || "Loading..."}
+        </Text>
+      </TouchableOpacity>
 
       <FlatList
         ref={flatListRef}

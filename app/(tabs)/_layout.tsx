@@ -100,6 +100,7 @@ export default function TabLayout() {
         <Tabs.Screen name="listings/[listingId]" options={{ href: null }} />
         <Tabs.Screen name="userListings" options={{ href: null }} />
         <Tabs.Screen name="userSettings" options={{ href: null }} />
+        <Tabs.Screen name="user/[userId]" options={{ href: null }} />
       </Tabs>
     </StripeProvider>
   );

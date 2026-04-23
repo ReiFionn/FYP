@@ -29,7 +29,9 @@ type ListingWithEvent = {
   ai_suggested_price: number;
   events: Event; 
   artist_image_url: string;
-  seller_display_name?: string; 
+  seller_display_name?: string;
+  seller_picture_url?: string | null;
+  seller_trust_rating?: number;
 };
 
 export default function ListingDetails() {
@@ -90,19 +92,41 @@ export default function ListingDetails() {
     checkReviewStatus();
   }, [listing, buyerId]);
 
+  const renderStars = (rating: number) => {
+    const safeRating = Math.max(0, Math.min(5, Number(rating) || 0));
+    const thresholdRating = Math.floor(safeRating * 2) / 2;
+    const fullStars = Math.floor(thresholdRating);
+    const hasHalfStar = thresholdRating % 1 !== 0;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    return '★'.repeat(fullStars) + (hasHalfStar ? '½' : '') + '☆'.repeat(emptyStars);
+  };
+
   const fetchListing = async () => {
     try {
       const { data, error } = await supabase
-        .from('listings').select(`*, events (id, title, age_restriction, start_time, venue_name, city, address_line1, category)`).eq('id', listingId).single();
+        .from('listings')
+        .select(`*, events (id, title, age_restriction, start_time, venue_name, city, address_line1, category)`)
+        .eq('id', listingId)
+        .single();
       
       if (error) throw error;
       
       if (data) {
-        const { data: profileData } = await supabase.from('profiles').select('display_name').eq('id', data.seller_id).single();
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('display_name, picture_url, trust_rating')
+          .eq('id', data.seller_id)
+          .maybeSingle()
+        
+        if (profileError) {
+          console.error("Profile Error (Check RLS Policies):", profileError.message);
+        }
         
         const listingWithDetails = {
             ...data,
-            seller_display_name: profileData?.display_name || 'Unknown User'
+            seller_display_name: profileData?.display_name || 'Unknown User',
+            seller_picture_url: profileData?.picture_url || null,
+            seller_trust_rating: profileData?.trust_rating || 0
         };
 
         setListing(listingWithDetails as unknown as ListingWithEvent);
@@ -524,7 +548,35 @@ export default function ListingDetails() {
 
         <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>Ticket Details</Text>
         <View style={{ marginLeft: 20, marginTop: 12, gap: 4 }}>
-          <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>Seller: {listing.seller_display_name}</Text>
+          <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Seller</Text>
+        
+          <TouchableOpacity 
+            onPress={() => {
+              if (buyerId === listing.seller_id) {
+                router.push('/(tabs)/profile');
+              } else {
+                router.push(`/user/${listing.seller_id}`);
+              }
+            }}
+            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: theme.icon, padding: 16, borderRadius: 16, marginBottom: 20 }}
+          >
+            <Image 
+              source={{ uri: listing.seller_picture_url || 'https://cdn.vectorstock.com/i/500p/08/19/gray-human-icon-profile-placeholder-vector-35850819.jpg' }} 
+              style={{ width: 50, height: 50, borderRadius: 25, marginRight: 16, borderWidth: 1, borderColor: theme.border, backgroundColor: theme.background }} 
+            />
+            
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700', marginBottom: 4 }}>
+                {listing.seller_display_name}
+              </Text>
+              <Text style={{ fontSize: 14, letterSpacing: 2, color: theme.tint }}>
+                {renderStars(listing.seller_trust_rating || 0)} <Text style={{ color: theme.tabIconDefault, fontSize: 12, letterSpacing: 0 }}>({Number(listing.seller_trust_rating || 0).toFixed(1)}/5)</Text>
+              </Text>
+            </View>
+
+            <Text style={{ color: theme.tabIconDefault, fontSize: 24 }}>›</Text>
+          </TouchableOpacity>
+
           <Text style={{ color: theme.tabIconDefault, fontSize: 16, fontWeight: '500' }}>AI Suggested Price: €{listing.ai_suggested_price}</Text>
           <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700', marginTop: 12 }}>Event Information</Text>
           
