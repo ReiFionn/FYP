@@ -8,7 +8,6 @@ import { supabase } from "../../lib/supabase";
 export default function Login() {
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -32,6 +31,16 @@ export default function Login() {
     if (isSignUp) {
       if (!displayName.trim()) {
         Alert.alert("Missing Name", "Please enter a display name.");
+        setLoading(false);
+        return;
+      }
+
+      const { data: isAvailable, error: checkError } = await supabase.rpc('check_username_available', { 
+        username: displayName.trim() 
+      });
+
+      if (checkError || !isAvailable) {
+        Alert.alert("Name Taken", "That display name is already in use.");
         setLoading(false);
         return;
       }

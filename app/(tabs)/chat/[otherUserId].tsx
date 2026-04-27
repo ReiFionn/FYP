@@ -1,6 +1,6 @@
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useCheckout } from '@/hooks/useCheckout';
+import { checkPendingReviews, useCheckout } from '@/hooks/useCheckout';
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, FlatList, Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
@@ -117,7 +117,7 @@ export default function Chat() {
     if (!myId || !conversationId || !selectedListingId) return alert("Please select an item to make an offer on.");
     
     const amount = parseFloat(offerAmount);
-    if (isNaN(amount) || amount <= 0) return alert("Please enter a valid numeric amount.");
+    if (isNaN(amount) || amount < 0.5) return Alert.alert("Please enter a valid numeric amount.", "Minimum €0.50 offer");
 
     const selectedListing = sellerListings.find(l => l.id === selectedListingId);
 
@@ -176,6 +176,13 @@ export default function Chat() {
 
   async function payForOffer(messageId: string, itemListingId: string) {
     if (!myId || !itemListingId) return alert("Missing listing context.");
+
+    const owesReview = await checkPendingReviews(myId);
+    
+    if (owesReview) {
+      Alert.alert("Action Required", "You must rate your previous transaction partner before proceeding.");
+      return;
+    }
 
     const { data: listing, error: fetchError } = await supabase
       .from('listings')

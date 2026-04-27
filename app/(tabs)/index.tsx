@@ -138,15 +138,14 @@ export default function Index() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
   };
 
-  const aiPriceColourLogic = (userPrice: number, aiPrice: number) => {
-    const marginOrange = aiPrice * 0.10;
-    const marginRed = aiPrice * 0.25;
-    
-    if (userPrice >= aiPrice + marginRed) aiPriceColour = Colors[colorScheme].error;
-    if (userPrice >= aiPrice + marginOrange) aiPriceColour = "#E2C28A"
-    
-    aiPriceColour = "#A4CBB4"
-  }
+    const aiPriceColourLogic = (userPrice: number, aiPrice: number) => {
+      const marginOrange = aiPrice * 0.10;
+      const marginRed = aiPrice * 0.25;
+      
+      if (userPrice >= aiPrice + marginRed) aiPriceColour = Colors[colorScheme].error;
+      else if (userPrice >= aiPrice + marginOrange) aiPriceColour = "#E2C28A"
+      else aiPriceColour = "#A4CBB4"
+    }
 
   const isToday = (dateString: string) => {
     const eventDate = new Date(dateString);

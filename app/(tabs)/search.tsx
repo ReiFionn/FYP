@@ -116,16 +116,21 @@ export default function Search() {
     }
   };
 
-  const getAiPriceColour = (userPrice: number, aiPrice: number) => {
-    const aiPriceFive = (aiPrice / 100) * 5;
-    if (userPrice >= aiPrice + (aiPriceFive * 2)) return theme.error; 
-    if (userPrice >= aiPrice + aiPriceFive) return "#E2C28A";
-    return "#A4CBB4";
-  };
+  const aiPriceColourLogic = (userPrice: number, aiPrice: number) => {
+      if (userPrice === undefined || aiPrice === undefined) return "#A4CBB4";
+      
+      const marginOrange = aiPrice * 0.10;
+      const marginRed = aiPrice * 0.25;
+      
+      if (userPrice >= aiPrice + marginRed) return Colors[colorScheme].error;
+      if (userPrice >= aiPrice + marginOrange) return "#E2C28A"
+      
+      return "#A4CBB4"
+    }
 
   const renderListing: ListRenderItem<ListingWithEvent> = ({ item }) => {
     if (!item.events) return null;
-    const aiPriceColour = getAiPriceColour(item.listing_price, item.ai_suggested_price);
+    const aiPriceColour = aiPriceColourLogic(item.listing_price, item.ai_suggested_price);
 
     return (
       <TouchableOpacity

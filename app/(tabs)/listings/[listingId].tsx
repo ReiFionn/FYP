@@ -1,6 +1,6 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useCheckout } from '@/hooks/useCheckout';
+import { checkPendingReviews, useCheckout } from '@/hooks/useCheckout';
 import { supabase } from "@/lib/supabase";
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from "react";
@@ -146,6 +146,14 @@ export default function ListingDetails() {
 
   const handleBuy = async () => {
     if (!buyerId || !listing) return;
+    
+    const owesReview = await checkPendingReviews(buyerId);
+
+    if (owesReview) {
+      Alert.alert("Action Required", "You must rate your previous transaction partner before proceeding.");
+      return;
+    }
+
     setLoadingPayment(true);
     
     const success = await processCheckout(listing.id, buyerId);
@@ -390,14 +398,12 @@ export default function ListingDetails() {
   }
 
   const aiPriceColourLogic = (userPrice: number, aiPrice: number) => {
-    const aiPriceFive = aiPrice/100*5
-
-    if (userPrice >= aiPrice + (aiPriceFive*2))
-      aiPriceColour = theme.error;
-    else if (userPrice >= aiPrice + aiPriceFive)
-      aiPriceColour = "#E2C28A";
-    else
-      aiPriceColour = "#A4CBB4";
+    const marginOrange = aiPrice * 0.10;
+    const marginRed = aiPrice * 0.25;
+    
+    if (userPrice >= aiPrice + marginRed) aiPriceColour = Colors[colorScheme].error;
+    else if (userPrice >= aiPrice + marginOrange) aiPriceColour = "#E2C28A"
+    else aiPriceColour = "#A4CBB4"
   }
 
   console.log("Event Data from Supabase:", listing.events);
@@ -683,10 +689,6 @@ export default function ListingDetails() {
 
               <TouchableOpacity disabled={submittingReview} onPress={submitReview} style={{ backgroundColor: theme.primary, padding: 14, borderRadius: 8, alignItems: 'center', opacity: submittingReview ? 0.7 : 1 }}>
                 <Text style={{ color: theme.tint, fontWeight: '700', fontSize: 16 }}>{submittingReview ? "Submitting..." : "Submit Review"}</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity onPress={() => setReviewModalVisible(false)} style={{ marginTop: 15, alignSelf: 'center' }}>
-                <Text style={{ color: theme.tabIconDefault, fontWeight: '600' }}>Skip for now</Text>
               </TouchableOpacity>
 
             </View>

@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
 
     const { data: sellerProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('stripe_account_id')
+      .select('stripe_account_id, push_token')
       .eq('id', listing.seller_id)
       .single();
 
@@ -53,13 +53,16 @@ Deno.serve(async (req) => {
     if (!sellerProfile?.stripe_account_id) throw new Error("Seller has no Stripe Connect account");
 
     const platformFeePercentage = 0.02; 
-    const finalPrice = listing.listing_price;
-    const amountToTransfer = Math.round(finalPrice * (1 - platformFeePercentage) * 100); 
+    const paymentIntent = await stripe.paymentIntents.retrieve(listing.payment_intent_id);
+    const chargeId = paymentIntent.latest_charge as string;
+    const actualCapturedAmount = paymentIntent.amount;
+    const amountToTransfer = Math.round(actualCapturedAmount * (1 - platformFeePercentage)); 
 
     const transfer = await stripe.transfers.create({
       amount: amountToTransfer,
       currency: 'eur',
       destination: sellerProfile.stripe_account_id,
+      source_transaction: chargeId,
       description: `Payout for Ticket: ${listing.events?.title || listingId}`,
     });
 
@@ -67,6 +70,41 @@ Deno.serve(async (req) => {
       .from('listings')
       .update({ ticket_received: true })
       .eq('id', listingId);
+    const { data: conversation } = await supabaseAdmin
+      .from('conversations')
+      .select('id')
+      .or(`and(user1_id.eq.${listing.seller_id},user2_id.eq.${listing.active_buyer_id}),and(user1_id.eq.${listing.active_buyer_id},user2_id.eq.${listing.seller_id})`)
+      .single();
+
+    if (conversation) {
+      await supabaseAdmin
+        .from('conversation_messages')
+        .insert({
+          conversation_id: conversation.id,
+          sender_id: listing.active_buyer_id, 
+          message_type: 'system', 
+          body: JSON.stringify({
+            text: 'The transaction is complete and funds are released! Please rate your experience.',
+            listingId: listing.id
+          }),
+        });
+    }
+
+    if (sellerProfile?.push_token) {
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: sellerProfile.push_token,
+          title: 'Ticket Secured!',
+          body: 'Your buyer confirmed and your funds are released. Tap here to rate them.',
+          data: { url: `/listings/${listing.id}` },
+        }),
+      });
+    }
 
     return new Response(JSON.stringify({ success: true, transferId: transfer.id }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -78,48 +116,6 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,
-    });
-  }
-
-  const { data: conversation } = await supabaseAdmin
-  .from('conversations')
-  .select('id')
-  .or(`and(user1_id.eq.${listing.seller_id},user2_id.eq.${listing.active_buyer_id}),and(user1_id.eq.${listing.active_buyer_id},user2_id.eq.${listing.seller_id})`)
-  .single();
-
-  if (conversation) {
-    await supabaseAdmin
-    .from('conversation_messages')
-    .insert({
-      conversation_id: conversation.id,
-      sender_id: listing.active_buyer_id, 
-      message_type: 'system', 
-      body: JSON.stringify({
-        text: 'The transaction is complete and funds are released! Please rate your experience.',
-        listingId: listing.id
-      }),
-    });
-  }
-
-  const { data: sellerProfile } = await supabaseAdmin
-  .from('profiles')
-  .select('expo_push_token')
-  .eq('id', listing.seller_id)
-  .single();
-
-  if (sellerProfile?.expo_push_token) {
-    await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: sellerProfile.expo_push_token,
-        title: 'Ticket Secured!',
-        body: 'Your buyer confirmed and your funds are released. Tap here to rate them.',
-        data: { url: `/listings/${listing.id}` },
-      }),
     });
   }
 });

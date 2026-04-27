@@ -44,6 +44,8 @@ export default function Profile() {
   const [refreshing, setRefreshing] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [activeTab, setActiveTab] = useState<'listings' | 'purchases' | 'reviews'>('listings');
+  let aiPriceColour = "#A4CBB4";
+
 
   useEffect(() => {
     fetchUserData();
@@ -91,7 +93,7 @@ export default function Profile() {
     return '★'.repeat(fullStars) + (hasHalfStar ? '½' : '') + '☆'.repeat(emptyStars);
   };
 
-  const getAiPriceColour = (userPrice?: number, aiPrice?: number) => {
+  const aiPriceColourLogic = (userPrice: number | undefined, aiPrice: number | undefined) => {
     if (userPrice === undefined || aiPrice === undefined) return "#A4CBB4";
     
     const marginOrange = aiPrice * 0.10;
@@ -101,16 +103,16 @@ export default function Profile() {
     if (userPrice >= aiPrice + marginOrange) return "#E2C28A";
     
     return "#A4CBB4";
-  };
+  }
 
   const renderItemCard = (item: Item, type: 'Listing' | 'Purchase') => {
-    const cardPriceColour = getAiPriceColour(item.listing_price, item.ai_suggested_price);
+    const aiPriceColour = aiPriceColourLogic(item.listing_price, item.ai_suggested_price);
     return (
       <TouchableOpacity key={item.id} onPress={() => router.push(`/listings/${item.id}`)} style={{ backgroundColor: theme.background, borderWidth: 1, borderColor: theme.icon, borderRadius: 16, marginBottom: 16, overflow: "hidden" }}>
         <View style={{ padding: 12 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <Text style={{ fontSize: 16, fontWeight: "700", color: theme.text, flex: 1, marginRight: 8 }}>{item.events?.title || 'Unknown Event'}</Text>
-            {type === 'Listing' && <Text style={{ fontSize: 16, fontWeight: "700", color: cardPriceColour }}>€{item.listing_price}</Text>}
+            {type === 'Listing' && <Text style={{ fontSize: 16, fontWeight: "700", color: aiPriceColour }}>€{item.listing_price}</Text>}
           </View>
           <View style={{ marginTop: 6 }}>
             <Text style={{ color: theme.tabIconDefault, fontSize: 14 }}>{item.events?.start_time ? new Date(item.events.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' }) : ''} • {item.events?.venue_name}</Text>

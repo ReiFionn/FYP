@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { checkPendingReviews } from '@/hooks/useCheckout';
 import { useGemini } from '@/hooks/useGemini';
 import { supabase } from '@/lib/supabase';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -12,14 +13,45 @@ import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplet
 
 export default function CreateListingTest() {
   const [isAllowed, setIsAllowed] = useState(false);
+  const colorScheme = useColorScheme() ?? 'light';
+  const [title, setTitle] = useState('');
+  const [price, setPrice] = useState('');
+  const [section, setSection] = useState('');
+  const [row, setRow] = useState('');
+  const [ticketType, setTicketType] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [dateMetadata, setDateMetadata] = useState(new Date());
+  const [venueName, setVenueName] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [region, setRegion] = useState('');
+  const [placeId, setPlaceId] = useState('');
+  const [category, setCategory] = useState('');
+  const [ageRestriction, setAgeRestriction] = useState('');
+  const [platformOfPuchase, setPlatformOfPurchase] = useState('');
+  const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [showPickerMetadata, setShowPickerMetadata] = useState(false);
+  const { askGemini } = useGemini();
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
 
-      const checkStripeConnection = async () => {
+      const checkRequirements = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user || !isActive) return;
+
+        const owesReview = await checkPendingReviews(user.id);
+        if (owesReview) {
+          Alert.alert(
+            "Action Required", 
+            "You must rate your previous transaction partners before creating a new listing.",
+            [{ text: "OK", onPress: () => router.back() }]
+          );
+          return;
+        }
 
         const { data: profile } = await supabase
           .from('profiles')
@@ -55,41 +87,11 @@ export default function CreateListingTest() {
         );
       };
 
-      checkStripeConnection();
+      checkRequirements();
 
       return () => { isActive = false; };
     }, [])
   );
-
-  if (!isAllowed) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
-  const colorScheme = useColorScheme() ?? 'light';
-  const [title, setTitle] = useState('');
-  const [price, setPrice] = useState('');
-  const [section, setSection] = useState('');
-  const [row, setRow] = useState('');
-  const [ticketType, setTicketType] = useState('');
-  const [date, setDate] = useState(new Date());
-  const [dateMetadata, setDateMetadata] = useState(new Date());
-  const [venueName, setVenueName] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [region, setRegion] = useState('');
-  const [placeId, setPlaceId] = useState('');
-  const [category, setCategory] = useState('');
-  const [ageRestriction, setAgeRestriction] = useState('');
-  const [platformOfPuchase, setPlatformOfPurchase] = useState('');
-  const [receiptUri, setReceiptUri] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [showPicker, setShowPicker] = useState(false);
-  const [showPickerMetadata, setShowPickerMetadata] = useState(false);
-  const { askGemini } = useGemini();
 
   const resetForm = () => {
     setTitle('');
@@ -150,9 +152,10 @@ export default function CreateListingTest() {
       return;
     }
 
-    if (isNaN(Number(price))) {
-      Alert.alert('Invalid Price', 'Please enter a valid number for the price.');
-      return;
+    const priceValue = parseFloat(price);
+
+    if (isNaN(priceValue) || priceValue < 0.50) {
+      return Alert.alert("Invalid Price", "Listings must be at least €0.50.");
     }
 
     setLoading(true);
@@ -294,6 +297,14 @@ export default function CreateListingTest() {
     }
   };
 
+  if (!isAllowed) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors[colorScheme].background }}>
+        <ActivityIndicator size="large" color={Colors[colorScheme].text} />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -321,7 +332,7 @@ export default function CreateListingTest() {
           />
 
           <Text style={{ color: Colors[colorScheme].text, marginBottom: 8, fontWeight: '600', fontSize: 14 }}>Event Date & Time <Text style={{ color: Colors[colorScheme].error }}>*</Text></Text>
-          <TouchableOpacity onPress={() => setShowPicker(true)} style={{ backgroundColor: Colors[colorScheme].tint, color: Colors[colorScheme].text, padding: 16, borderRadius: 12, marginBottom: 16, fontSize: 16 }}>
+          <TouchableOpacity onPress={() => setShowPicker(true)} style={{ backgroundColor: Colors[colorScheme].tint, padding: 16, borderRadius: 12, marginBottom: 16 }}>
             <Text style={{ color: Colors[colorScheme].text, fontSize: 16 }}>
               {date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
             </Text>
@@ -478,7 +489,7 @@ export default function CreateListingTest() {
           />
 
           <Text style={{ color: Colors[colorScheme].text, marginBottom: 8, fontWeight: '600', fontSize: 14 }}>Date of Purchase <Text style={{ color: Colors[colorScheme].error }}>*</Text></Text>
-          <TouchableOpacity onPress={() => setShowPickerMetadata(true)} style={{ backgroundColor: Colors[colorScheme].tint, color: Colors[colorScheme].text, padding: 16, borderRadius: 12, marginBottom: 16, fontSize: 16 }}>
+          <TouchableOpacity onPress={() => setShowPickerMetadata(true)} style={{ backgroundColor: Colors[colorScheme].tint, padding: 16, borderRadius: 12, marginBottom: 16 }}>
             <Text style={{ color: Colors[colorScheme].text, fontSize: 16 }}>
               {dateMetadata.toLocaleString([], { dateStyle: 'medium' })}
             </Text>

@@ -2,6 +2,19 @@ import { supabase } from "@/lib/supabase";
 import { useStripe } from "@stripe/stripe-react-native";
 import { Alert } from "react-native";
 
+export async function checkPendingReviews(userId: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('has_pending_reviews', {
+        p_user_id: userId
+    });
+    
+    if (error) {
+        console.error("Error checking pending reviews:", error);
+        return false; 
+    }
+    
+    return data;
+}
+
 export function useCheckout() {
     const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
