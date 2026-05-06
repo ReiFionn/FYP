@@ -43,4 +43,5 @@ app-example
 /ios
 /android
 
-linked-project.json
+linked-project.json".env" 
+".env" 
